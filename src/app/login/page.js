@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { login } from "@/services/authService"
 
 export default function LoginPage() {
@@ -10,6 +11,15 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const router = useRouter()
+
+    useEffect(() => {
+        // Jika user sudah memiliki token, langsung arahkan ke dashboard utama
+        const token = localStorage.getItem("token")
+        if (token) {
+            router.push("/")
+        }
+    }, [router])
 
     const handleLogin = async (e) => {
 
@@ -27,7 +37,7 @@ export default function LoginPage() {
 
             localStorage.setItem("token", res.data.token)
 
-            window.location.href = "/dashboard"
+            router.push("/")
 
         } catch (err) {
 

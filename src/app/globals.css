@@ -27,3 +27,22 @@ body{
   8px 8px 16px rgba(0,0,0,0.05),
   -8px -8px 16px rgba(255,255,255,0.8);
 }
+
+/* Custom Scrollbar for GR History */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F9FAFB;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E5E7EB;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #D1D5DB;
+}

@@ -21,10 +21,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build & Export
-        run: |
-          npm run build
-          npm run export
+      - name: Build
+        run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
@@ -35,4 +33,4 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./out/
-          server-dir: /public_html/
+          server-dir: /kelurahanlimbaudua.web.id/

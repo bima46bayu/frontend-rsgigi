@@ -25,7 +25,8 @@ export default function MasterUserPage() {
         email: "",
         password: "",
         role: "",
-        location_id: ""
+        location_id: "",
+        receive_alert: false
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -77,8 +78,13 @@ export default function MasterUserPage() {
         setFormData(prev => ({ ...prev, [name]: value }))
     }
 
+    const handleToggleChange = (e) => {
+        const { name, checked } = e.target
+        setFormData(prev => ({ ...prev, [name]: checked }))
+    }
+
     const handleOpenAdd = () => {
-        setFormData({ name: "", email: "", password: "", role: "", location_id: "" })
+        setFormData({ name: "", email: "", password: "", role: "", location_id: "", receive_alert: false })
         setIsAddOpen(true)
     }
 
@@ -89,7 +95,8 @@ export default function MasterUserPage() {
             email: user.email,
             role: user.roles?.[0]?.name || "",
             location_id: user.location_id || "",
-            password: "" // Not used in edit as per controller analysis
+            password: "",
+            receive_alert: user.receive_alert == 1 || user.receive_alert === true
         })
         setIsEditOpen(true)
     }
@@ -131,7 +138,8 @@ export default function MasterUserPage() {
                 name: formData.name,
                 email: formData.email,
                 role: formData.role,
-                location_id: formData.location_id
+                location_id: formData.location_id,
+                receive_alert: formData.receive_alert
             }
             await updateUser(currentUser.id, updateData)
             toast.success("User berhasil diperbarui!")
@@ -299,6 +307,24 @@ export default function MasterUserPage() {
                                         </select>
                                     </div>
                                 </div>
+                                <div className="pt-2">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative flex items-center justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                name="receive_alert"
+                                                checked={formData.receive_alert}
+                                                onChange={handleToggleChange}
+                                                className="w-5 h-5 border-2 border-gray-300 rounded text-primary focus:ring-primary focus:ring-offset-0 transition-all cursor-pointer peer appearance-none checked:bg-primary checked:border-primary" 
+                                            />
+                                            <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-700 group-hover:text-primary transition-colors">Terima Peringatan Stok & Kedaluwarsa</span>
+                                            <span className="text-[10px] text-gray-400">Izinkan user menerima notifikasi via Email & Web</span>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
                             <div className="mt-6 flex justify-end gap-2">
                                 <button type="button" onClick={() => setIsAddOpen(false)} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
@@ -351,6 +377,24 @@ export default function MasterUserPage() {
                                             ))}
                                         </select>
                                     </div>
+                                </div>
+                                <div className="pt-2">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative flex items-center justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                name="receive_alert"
+                                                checked={formData.receive_alert}
+                                                onChange={handleToggleChange}
+                                                className="w-5 h-5 border-2 border-gray-300 rounded text-primary focus:ring-primary focus:ring-offset-0 transition-all cursor-pointer peer appearance-none checked:bg-primary checked:border-primary" 
+                                            />
+                                            <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-700 group-hover:text-primary transition-colors">Terima Peringatan Stok & Kedaluwarsa</span>
+                                            <span className="text-[10px] text-gray-400">Izinkan user menerima notifikasi via Email & Web</span>
+                                        </div>
+                                    </label>
                                 </div>
                                 <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 leading-relaxed">
                                     <span className="font-bold block mb-1">⚠️ Perhatian:</span>

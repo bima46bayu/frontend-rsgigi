@@ -14,7 +14,8 @@ export default function ProfilePage() {
     const [formData, setFormData] = useState({
         name: "",
         email: "",
-        phone_number: ""
+        phone_number: "",
+        receive_alert: false
     })
 
     // Password Modal state
@@ -40,7 +41,8 @@ export default function ProfilePage() {
             setFormData({
                 name: userData.name || "",
                 email: userData.email || "",
-                phone_number: userData.phone_number || ""
+                phone_number: userData.phone_number || "",
+                receive_alert: userData.receive_alert == 1 || userData.receive_alert === true
             })
         } catch (error) {
             toast.error("Gagal mengambil data profil")
@@ -53,6 +55,11 @@ export default function ProfilePage() {
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
+    }
+
+    const handleToggleChange = (e) => {
+        const { name, checked } = e.target
+        setFormData(prev => ({ ...prev, [name]: checked }))
     }
 
     const handlePasswordInputChange = (e) => {
@@ -262,6 +269,23 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className="flex items-center justify-between p-5 bg-primarySoft rounded-2xl border border-primary/10">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800">Terima Notifikasi Alert</h4>
+                                    <p className="text-xs text-gray-500 mt-1">Dapatkan pemberitahuan via Email & WA saat stok kritis/expired</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        name="receive_alert"
+                                        checked={formData.receive_alert}
+                                        onChange={handleToggleChange}
+                                        className="sr-only peer" 
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
                             </div>
 
                             <div className="pt-6">

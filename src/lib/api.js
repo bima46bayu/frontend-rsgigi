@@ -56,7 +56,7 @@ api.interceptors.response.use(
         localStorage.removeItem("token")
         
         // Only redirect if not already on the login page to prevent infinite loops
-        if (window.location.pathname !== "/login") {
+        if (!window.location.pathname.startsWith("/login")) {
           window.location.href = "/login"
         }
       }

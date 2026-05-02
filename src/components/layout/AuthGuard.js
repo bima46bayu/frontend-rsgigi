@@ -14,7 +14,7 @@ export default function AuthGuard({ children }) {
         
         if (!token) {
             // Jika tidak ada token dan bukan di halaman login, redirect ke login
-            if (pathname !== "/login") {
+            if (!pathname.startsWith("/login")) {
                 router.push("/login")
             }
         } else {
@@ -25,7 +25,7 @@ export default function AuthGuard({ children }) {
 
     // Jangan render apa-apa (atau render loading state) sambil mengecek auth,
     // kecuali kita sudah berada di halaman login (login page menangani dirinya sendiri)
-    if (!isAuthenticated && pathname !== "/login") {
+    if (!isAuthenticated && !pathname.startsWith("/login")) {
         return (
             <div className="h-screen w-screen flex items-center justify-center bg-bgSoft">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

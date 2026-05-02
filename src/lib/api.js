@@ -27,7 +27,7 @@ api.interceptors.response.use(
     if (response.config.method === 'get') {
       try {
         localStorage.setItem(`offline_cache_${response.config.url}`, JSON.stringify(response.data))
-      } catch(e) { /* Abaikan jika localStorage penuh */ }
+      } catch (e) { /* Abaikan jika localStorage penuh */ }
     }
     return response;
   },
@@ -50,18 +50,18 @@ api.interceptors.response.use(
 
     // If the error is 401 Unauthorized
     if (error.response && error.response.status === 401) {
-      
+
       // Clean up token
       if (typeof window !== "undefined") {
         localStorage.removeItem("token")
-        
+
         // Only redirect if not already on the login page to prevent infinite loops
         if (!window.location.pathname.startsWith("/login")) {
           window.location.href = "/login"
         }
       }
     }
-    
+
     return Promise.reject(error)
   }
 )

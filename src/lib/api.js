@@ -15,6 +15,9 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
     config.headers['X-Authorization'] = `Bearer ${token}` // Bypass cPanel header stripping
+    
+    // Ultimate fallback for cPanel: append token to URL
+    config.params = { ...config.params, token: token } // Send full token string
   }
 
   return config

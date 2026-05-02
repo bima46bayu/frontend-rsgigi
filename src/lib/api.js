@@ -14,6 +14,7 @@ api.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+    config.headers['X-Authorization'] = `Bearer ${token}` // Bypass cPanel header stripping
   }
 
   return config

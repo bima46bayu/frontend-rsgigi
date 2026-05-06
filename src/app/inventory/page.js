@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import { getItems, createItem, updateItem, deleteItem, adjustStockIn } from "@/services/inventoryService"
 import { getCategories } from "@/services/categoryService"
-import { useRealtimeUpdate } from "@/hooks/useRealtime"
 
 export default function InventoryPage() {
     const router = useRouter()
@@ -81,9 +80,6 @@ export default function InventoryPage() {
         }, 500)
         return () => clearTimeout(timer)
     }, [searchQuery])
-
-    // Sinkronisasi data real-time
-    useRealtimeUpdate('inventory', loadData)
 
     const handleInputChange = (e) => {
         const { name, value } = e.target

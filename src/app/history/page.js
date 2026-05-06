@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import toast from "react-hot-toast"
 import { getRecords, completeRecord, rejectRecord, getRecordDetails, updateRecordItems } from "@/services/recordService"
-import { useRealtimeUpdate } from "@/hooks/useRealtime"
-
 export default function HistoryPage() {
     const [records, setRecords] = useState([])
     const [loading, setLoading] = useState(true)
@@ -67,9 +65,6 @@ export default function HistoryPage() {
         }, 500)
         return () => clearTimeout(timer)
     }, [searchQuery])
-
-    // Sinkronisasi data real-time
-    useRealtimeUpdate('records', () => loadData(currentPage))
 
     const handleOpenDetail = async (record) => {
         setCurrentRecord(record)

@@ -4,8 +4,6 @@ import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { getItems } from "@/services/inventoryService"
 import { getNotifications } from "@/services/notificationService"
-import { useRealtimeUpdate } from "@/hooks/useRealtime"
-
 export default function Dashboard() {
   const router = useRouter()
   const [items, setItems] = useState([])
@@ -32,9 +30,6 @@ export default function Dashboard() {
   useEffect(() => {
     loadData()
   }, [])
-
-  useRealtimeUpdate('inventory', loadData)
-  useRealtimeUpdate('notification', loadData)
 
   const stats = useMemo(() => {
     let total = items.length

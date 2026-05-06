@@ -5,8 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { getMe } from "@/services/authService"
 import { getNotifications, markAsRead } from "@/services/notificationService"
-import { useRealtimeNotifications } from "@/hooks/useRealtime"
-
 export default function Navbar() {
 
     const [user, setUser] = useState(null)
@@ -20,14 +18,6 @@ export default function Navbar() {
     const pathname = usePathname()
 
     const unreadCount = notifications.filter(n => !n.read_at).length
-
-    // Listen for real-time notifications
-    useRealtimeNotifications(user?.id, (notification) => {
-        // Transform incoming notification to match the list format if necessary
-        // Typically Laravel sends the notification data object
-        setNotifications(prev => [notification, ...prev])
-    })
-
     // Heuristics untuk mengekstrak konten dari berbagai tipe notifikasi (Sinkron dengan page notifikasi)
     const getNotificationContent = (notif) => {
         const data = notif.data || {};

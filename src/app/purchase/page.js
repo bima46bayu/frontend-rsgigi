@@ -13,8 +13,6 @@ import {
 } from "@/services/purchaseService"
 import { getSuppliers } from "@/services/supplierService"
 import { getItems } from "@/services/inventoryService"
-import { useRealtimeUpdate } from "@/hooks/useRealtime"
-
 export default function PurchasePage() {
     const router = useRouter()
     const [purchases, setPurchases] = useState([])
@@ -74,8 +72,6 @@ export default function PurchasePage() {
     useEffect(() => {
         loadData()
     }, [])
-
-    useRealtimeUpdate('purchases', loadData)
 
     const handleOpenDetail = async (po) => {
         setIsDetailOpen(true)

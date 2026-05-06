@@ -9,7 +9,7 @@ export default function AppLayoutWrapper({ children }) {
   const pathname = usePathname()
 
   // Hide Sidebar and Navbar on Login page
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
     return <>{children}</>
   }
 

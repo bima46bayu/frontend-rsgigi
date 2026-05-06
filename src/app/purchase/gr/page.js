@@ -9,7 +9,6 @@ import {
     completeGoodsReceipt 
 } from "@/services/goodsReceiptService"
 import { getPurchases, getPurchase } from "@/services/purchaseService"
-import { useRealtimeUpdate } from "@/hooks/useRealtime"
 
 export default function GoodsReceiptPage() {
     const router = useRouter()
@@ -59,9 +58,6 @@ export default function GoodsReceiptPage() {
     useEffect(() => {
         loadData()
     }, [])
-
-    useRealtimeUpdate('purchases', loadData)
-    useRealtimeUpdate('goods_receipts', loadData)
 
     const handleOpenDetail = async (po) => {
         setIsDetailOpen(true)

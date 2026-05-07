@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
-import { getItems, createItem, updateItem, deleteItem, adjustStockIn } from "@/services/inventoryService"
+import { getItems, createItem, updateItem, deleteItem, adjustStockIn, exportInventory } from "@/services/inventoryService"
 import { getCategories } from "@/services/categoryService"
 
 export default function InventoryPage() {
@@ -39,6 +39,7 @@ export default function InventoryPage() {
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isDetailLoading, setIsDetailLoading] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
 
     // Helper untuk penanganan error API
     const handleApiError = (error, defaultMsg) => {
@@ -199,6 +200,20 @@ export default function InventoryPage() {
         }
     }
 
+    const handleExport = async () => {
+        setIsExporting(true)
+        const toastId = toast.loading("Sedang menyiapkan file Excel...")
+        try {
+            await exportInventory()
+            toast.success("Inventory berhasil diekspor!", { id: toastId })
+        } catch (error) {
+            handleApiError(error, "Gagal mengekspor data")
+            toast.dismiss(toastId)
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     const filteredItems = items.filter(item => 
         item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         item.category?.name.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -239,8 +254,12 @@ export default function InventoryPage() {
                         </svg>
                         Tambah Barang
                     </button>
-                    <button className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    <button 
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        {isExporting ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div> : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>}
                         Export
                     </button>
                 </div>

@@ -24,3 +24,18 @@ export const completeRecord = async (id) => {
 export const rejectRecord = async (id) => {
     return sendRequest(`/records/${id}/reject`, {})
 }
+
+export const exportHistory = async (startDate = '', endDate = '') => {
+    const response = await api.get("/export/history", {
+        params: { start_date: startDate, end_date: endDate },
+        responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `history-rekam-medis-${new Date().toISOString().split('T')[0]}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}

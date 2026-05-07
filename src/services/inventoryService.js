@@ -31,3 +31,17 @@ export const adjustStockIn = (id, data) => {
 export const adjustStockOut = (id, data) => {
     return sendRequest(`/items/${id}/stock-out`, data)
 }
+
+export const exportInventory = async () => {
+    const response = await api.get("/export/inventory", {
+        responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `inventory-${new Date().toISOString().split('T')[0]}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}

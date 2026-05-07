@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react"
 import toast from "react-hot-toast"
-import { getRecords, completeRecord, rejectRecord, getRecordDetails, updateRecordItems } from "@/services/recordService"
+import { getRecords, completeRecord, rejectRecord, getRecordDetails, updateRecordItems, exportHistory } from "@/services/recordService"
+import DateRangePicker from "@/components/DateRangePicker"
+import { format } from 'date-fns'
+import { id } from 'date-fns/locale'
 export default function HistoryPage() {
     const [records, setRecords] = useState([])
     const [loading, setLoading] = useState(true)
@@ -20,6 +23,7 @@ export default function HistoryPage() {
     // Modal states
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false)
     
     // Data states
     const [currentRecord, setCurrentRecord] = useState(null)
@@ -32,6 +36,11 @@ export default function HistoryPage() {
     const [isEditingItems, setIsEditingItems] = useState(false)
     const [editedItems, setEditedItems] = useState([])
     const [isSavingItems, setIsSavingItems] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
+    const [exportRange, setExportRange] = useState({
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0]
+    })
 
     const loadData = async (page = 1) => {
         try {
@@ -155,6 +164,22 @@ export default function HistoryPage() {
         }
     }
 
+    const handleExport = async (e) => {
+        e.preventDefault()
+        setIsExporting(true)
+        const toastId = toast.loading("Sedang menyiapkan file Excel...")
+        try {
+            await exportHistory(exportRange.start_date, exportRange.end_date)
+            toast.success("History berhasil diekspor!", { id: toastId })
+            setIsExportModalOpen(false)
+        } catch (error) {
+            console.error(error)
+            toast.error("Gagal mengekspor data history", { id: toastId })
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     const filteredRecords = records.filter(r => 
         (r.patient_name || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         (r.code || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -185,6 +210,15 @@ export default function HistoryPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
                     />
+                </div>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setIsExportModalOpen(true)}
+                        className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                        Export
+                    </button>
                 </div>
             </div>
 
@@ -508,6 +542,59 @@ export default function HistoryPage() {
                                 }`}
                             >
                                 {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : (confirmAction === 'complete' ? "Ya, Selesaikan" : "Ya, Tolak")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL: EXPORT HISTORY */}
+            {isExportModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-white/20">
+                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shadow-inner">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-800 text-lg leading-none mb-1.5">Export Laporan Riwayat</h3>
+                                    <p className="text-[11px] text-slate-400 font-bold tracking-[0.2em]">Format Microsoft Excel (.xlsx)</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsExportModalOpen(false)} className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 rounded-2xl transition-all text-slate-400 active:scale-90">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="bg-white">
+                            <DateRangePicker 
+                                value={exportRange} 
+                                onChange={(range) => setExportRange(range)} 
+                            />
+                        </div>
+
+                        <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+                            <button 
+                                onClick={() => setIsExportModalOpen(false)}
+                                className="flex-1 px-6 py-4 text-sm font-black text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all uppercase tracking-widest"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                onClick={handleExport} 
+                                disabled={isExporting || !exportRange.start_date || !exportRange.end_date} 
+                                className="flex-[2] px-8 py-4 text-sm font-black text-white bg-primary hover:bg-primary/90 rounded-[22px] shadow-[0_15px_30px_-5px_rgba(37,99,235,0.4)] flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+                            >
+                                {isExporting ? (
+                                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                        Download Laporan Excel
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

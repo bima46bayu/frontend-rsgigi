@@ -14,7 +14,7 @@ export default function Dashboard() {
     try {
       setLoading(true)
       const [itemsRes, notifRes] = await Promise.all([
-        getItems(),
+        getItems({ with_stocks: 1 }),
         getNotifications({ page: 1, limit: 10 })
       ])
       
@@ -75,6 +75,33 @@ export default function Dashboard() {
       return distArray.map((d, i) => ({...d, colorClass: colors[i % colors.length], borderClass: borderColors[i % borderColors.length]}));
   }, [items])
 
+  const expiringBatches = useMemo(() => {
+      let allBatches = []
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      items.forEach(item => {
+          if (item.stocks && Array.isArray(item.stocks)) {
+              item.stocks.forEach(stock => {
+                  if (stock.expiry_date) {
+                      const expDate = new Date(stock.expiry_date)
+                      const diffTime = expDate - today
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                      
+                      allBatches.push({
+                          ...stock,
+                          item_name: item.name,
+                          days_to_expire: diffDays
+                      })
+                  }
+              })
+          }
+      })
+
+      // Sort by nearest expiry first
+      return allBatches.sort((a, b) => a.days_to_expire - b.days_to_expire).slice(0, 5)
+  }, [items])
+
   const recentActivity = notifications.slice(0, 4);
 
   const getStatusBadge = (status) => {
@@ -86,6 +113,13 @@ export default function Dashboard() {
         }
   }
 
+  const currentDate = new Date().toLocaleDateString('id-ID', {
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric'
+  })
+
   return (
     <div className="p-6 bg-slate-50 min-h-screen font-sans text-slate-800">
       
@@ -95,7 +129,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           <div className="bg-white border text-sm text-slate-600 rounded-lg px-4 py-2 flex items-center shadow-sm">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            Hari Ini
+            {currentDate}
           </div>
           <button onClick={() => router.push('/inventory')} className="bg-primary text-white font-medium rounded-lg px-5 py-2 hover:bg-primary/90 transition shadow-sm shadow-primary/30 flex items-center">
             Kelola Inventory
@@ -250,6 +284,61 @@ export default function Dashboard() {
                 </button>
                 </div>
 
+            </div>
+
+            {/* Expired Overview Section */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-8">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        Expired Batch Overview
+                    </h3>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => router.push('/inventory')} className="text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 py-2 px-3 rounded-lg transition">Lihat Semua →</button>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="text-xs text-slate-400 border-b border-slate-100 uppercase tracking-wider">
+                                <th className="pb-3 pt-2 font-medium">Nama Barang</th>
+                                <th className="pb-3 pt-2 font-medium">Batch</th>
+                                <th className="pb-3 pt-2 font-medium">Kuantitas</th>
+                                <th className="pb-3 pt-2 font-medium">Tgl. Expired</th>
+                                <th className="pb-3 pt-2 font-medium text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                            {expiringBatches.map(batch => (
+                                <tr key={batch.id} className="border-b border-slate-50 hover:bg-slate-50 transition cursor-pointer" onClick={() => router.push(`/inventory`)}>
+                                    <td className="py-4 font-medium text-slate-700">{batch.item_name}</td>
+                                    <td className="py-4 text-slate-500 font-mono text-xs">{batch.batch_number || '-'}</td>
+                                    <td className="py-4 text-slate-600 font-semibold">{batch.quantity}</td>
+                                    <td className="py-4 text-slate-500">
+                                        {new Date(batch.expiry_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+                                    </td>
+                                    <td className="py-4 text-center">
+                                        {batch.days_to_expire < 0 ? (
+                                            <span className="inline-block px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold uppercase tracking-wider">Expired</span>
+                                        ) : batch.days_to_expire <= 30 ? (
+                                            <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold uppercase tracking-wider">Mendekati</span>
+                                        ) : (
+                                            <span className="inline-block px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold uppercase tracking-wider">Aman</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {expiringBatches.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="py-8 text-center text-slate-400">Tidak ada batch dengan tanggal kadaluarsa.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Bottom Section: Distribution & Notification */}

@@ -160,22 +160,30 @@ export default function GoodsReceiptPage() {
     }
 
     return (
-        <div className="flex flex-col h-full uppercase tracking-tighter">
+        <div className="flex flex-col h-full tracking-tighter">
             {/* Header / Info */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-xl font-black text-gray-900 leading-tight">Penerimaan Barang (GR)</h1>
-                        <p className="text-gray-400 text-[10px] mt-1 font-bold">Lakukan pengecekan dan terima barang dari pesanan yang sedang berjalan.</p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5 flex items-center gap-3">
+                <button 
+                    onClick={() => router.back()} 
+                    className="w-9 h-9 flex justify-center items-center border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-all shrink-0 group"
+                    title="Kembali ke Halaman Sebelumnya"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                </button>
+                <div className="w-px h-6 bg-gray-200 hidden md:block"></div>
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0 hidden md:flex">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => router.back()} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-[10px] font-black transition-all">Kembali</button>
+                    <div>
+                        <h1 className="text-base font-black text-gray-900 leading-tight tracking-tight uppercase">Penerimaan Barang (GR)</h1>
+                        <p className="text-gray-500 text-[10px] mt-0.5 font-semibold">Lakukan pengecekan dan terima barang dari pesanan yang sedang berjalan.</p>
                     </div>
                 </div>
             </div>
 
             {/* Main Content: Grouped by PO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {loading ? (
                     <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-400 gap-4">
                         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -196,34 +204,37 @@ export default function GoodsReceiptPage() {
                         <div 
                             key={po.id} 
                             onClick={() => handleOpenDetail(po)}
-                            className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group animate-in slide-in-from-bottom duration-300"
+                            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col justify-between min-h-[150px] animate-in slide-in-from-bottom duration-300 relative overflow-hidden"
                         >
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <div className="text-[10px] font-black text-primary mb-1 uppercase tracking-widest">{po.po_number}</div>
-                                    <div className="text-sm font-black text-gray-800 leading-tight group-hover:text-primary transition-colors">{po.supplier?.name}</div>
+                            <div className="absolute -right-6 -top-6 w-20 h-20 bg-gray-50 rounded-full group-hover:bg-primary/5 transition-colors z-0"></div>
+                            
+                            <div className="relative z-10 flex justify-between items-start mb-3">
+                                <div className="pr-2">
+                                    <div className="text-[9px] font-black text-primary mb-0.5 uppercase tracking-wider">{po.po_number}</div>
+                                    <div className="text-xs font-black text-gray-800 leading-snug group-hover:text-primary transition-colors line-clamp-2">{po.supplier?.name}</div>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded-lg border text-[9px] font-black uppercase ${getStatusColor(po.status)}`}>
-                                    {po.status === 'partially_received' ? 'Sebagian' : 'Approved'}
+                                <span className={`shrink-0 px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest ${getStatusColor(po.status)}`}>
+                                    {po.status === 'partially_received' ? 'Sebagian' : 'Disetujui'}
                                 </span>
                             </div>
 
-                            <div className="mt-8">
-                                <div className="flex justify-between text-[9px] font-black mb-2 text-gray-400 uppercase tracking-widest">
-                                    <span>Kedatangan Barang</span>
-                                    <span>{progress}%</span>
+                            <div className="relative z-10 mt-auto">
+                                <div className="flex justify-between text-[8px] font-black mb-1.5 text-gray-400 uppercase tracking-widest">
+                                    <span>Kedatangan</span>
+                                    <span className={progress === 100 ? "text-emerald-500" : "text-gray-500"}>{progress}%</span>
                                 </div>
-                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+                                    <div className={`h-full transition-all duration-1000 ${progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${progress}%` }}></div>
                                 </div>
-                            </div>
 
-                            <div className="mt-6 flex justify-between items-center pt-4 border-t border-gray-50">
-                                <div className="text-[9px] font-bold text-gray-400 italic">
-                                    {po.items_count} Item Barang
-                                </div>
-                                <div className="flex items-center gap-1 text-[9px] font-black text-primary group-hover:gap-2 transition-all">
-                                    PROSES <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                                    <div className="text-[9px] font-bold text-gray-400 flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                                        {po.items_count} Item
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[9px] font-black text-primary group-hover:gap-1.5 transition-all bg-primary/5 px-2 py-1 rounded-lg">
+                                        PROSES <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                                    </div>
                                 </div>
                             </div>
                         </div>

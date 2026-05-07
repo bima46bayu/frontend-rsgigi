@@ -13,6 +13,7 @@ import {
 } from "@/services/purchaseService"
 import { getSuppliers } from "@/services/supplierService"
 import { getItems } from "@/services/inventoryService"
+import SearchableSelect from "@/components/SearchableSelect"
 export default function PurchasePage() {
     const router = useRouter()
     const [purchases, setPurchases] = useState([])
@@ -24,6 +25,9 @@ export default function PurchasePage() {
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isDetailOpen, setIsDetailOpen] = useState(false)
+    const [isApproveOpen, setIsApproveOpen] = useState(false)
+    const [isCancelOpen, setIsCancelOpen] = useState(false)
+    const [actionPOId, setActionPOId] = useState(null)
     const [selectedPO, setSelectedPO] = useState(null)
 
     // Form states
@@ -133,27 +137,45 @@ export default function PurchasePage() {
         }
     }
 
-    const handleApprove = async (id) => {
-        if (!confirm("Setujui Purchase Order ini?")) return
+    const confirmApprove = (id) => {
+        setActionPOId(id)
+        setIsApproveOpen(true)
+    }
+
+    const confirmCancel = (id) => {
+        setActionPOId(id)
+        setIsCancelOpen(true)
+    }
+
+    const handleApprove = async () => {
+        if (!actionPOId) return
+        setIsSubmitting(true)
         try {
-            await approvePurchase(id)
+            await approvePurchase(actionPOId)
             toast.success("PO disetujui")
             loadData()
+            setIsApproveOpen(false)
             if (isDetailOpen) setIsDetailOpen(false)
         } catch (error) {
             handleApiError(error, "Gagal menyetujui PO")
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
-    const handleCancel = async (id) => {
-        if (!confirm("Batalkan Purchase Order ini?")) return
+    const handleCancel = async () => {
+        if (!actionPOId) return
+        setIsSubmitting(true)
         try {
-            await cancelPurchase(id)
+            await cancelPurchase(actionPOId)
             toast.success("PO dibatalkan")
             loadData()
+            setIsCancelOpen(false)
             if (isDetailOpen) setIsDetailOpen(false)
         } catch (error) {
             handleApiError(error, "Gagal membatalkan PO")
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
@@ -270,14 +292,14 @@ export default function PurchasePage() {
                                                 {po.status === 'draft' && (
                                                     <>
                                                         <button 
-                                                            onClick={() => handleApprove(po.id)}
+                                                            onClick={() => confirmApprove(po.id)}
                                                             className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                                             title="Setujui PO"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                                                         </button>
                                                         <button 
-                                                            onClick={() => handleCancel(po.id)}
+                                                            onClick={() => confirmCancel(po.id)}
                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                             title="Batalkan PO"
                                                         >
@@ -298,7 +320,7 @@ export default function PurchasePage() {
             {/* MODAL: ADD PO */}
             {isAddOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 className="font-bold text-gray-800">Buat Purchase Order Baru</h3>
                             <button onClick={() => setIsAddOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -345,20 +367,17 @@ export default function PurchasePage() {
                                 </button>
                             </div>
 
-                            <div className="space-y-3 mb-6">
+                            <div className="space-y-3 mb-6 pb-40">
                                 {formData.items.map((item, idx) => (
                                     <div key={idx} className="flex gap-3 items-end bg-gray-50 p-3 rounded-xl border border-gray-100 animate-in slide-in-from-top-1 duration-200">
                                         <div className="flex-1">
                                             <label className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">Barang</label>
-                                            <select 
-                                                value={item.item_id} 
-                                                onChange={(e) => handleItemChange(idx, 'item_id', e.target.value)}
-                                                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs"
-                                                required
-                                            >
-                                                <option value="">Pilih Barang</option>
-                                                {allItems.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                                            </select>
+                                            <SearchableSelect 
+                                                options={allItems}
+                                                value={item.item_id}
+                                                onChange={(val) => handleItemChange(idx, 'item_id', val)}
+                                                placeholder="Cari Barang..."
+                                            />
                                         </div>
                                         <div className="w-20">
                                             <label className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">Qty</label>
@@ -482,13 +501,13 @@ export default function PurchasePage() {
                                 {selectedPO.status === 'draft' && (
                                     <>
                                         <button 
-                                            onClick={() => handleCancel(selectedPO.id)}
+                                            onClick={() => confirmCancel(selectedPO.id)}
                                             className="px-6 py-2.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
                                         >
                                             Batalkan & Hapus
                                         </button>
                                         <button 
-                                            onClick={() => handleApprove(selectedPO.id)}
+                                            onClick={() => confirmApprove(selectedPO.id)}
                                             className="px-6 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-lg shadow-emerald-500/30 transition-all font-black tracking-wide"
                                         >
                                             APPROVE SEKARANG
@@ -505,6 +524,43 @@ export default function PurchasePage() {
                                 )}
                                 <button onClick={() => setIsDetailOpen(false)} className="px-6 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 transition-all">Tutup</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL: APPROVE CONFIRMATION */}
+            {isApproveOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in duration-200 scale-95">
+                        <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                        </div>
+                        <h3 className="font-bold text-xl text-gray-800 mb-2">Setujui Purchase Order?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menyetujui PO ini? Status PO akan berubah menjadi Approved dan dapat diproses untuk penerimaan (GR).</p>
+                        <div className="flex justify-center gap-3">
+                            <button type="button" onClick={() => setIsApproveOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
+                            <button type="button" onClick={handleApprove} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-colors shadow-lg shadow-emerald-500/30 disabled:opacity-70 w-full flex justify-center items-center gap-2">
+                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Ya, Setujui"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: CANCEL CONFIRMATION */}
+            {isCancelOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in duration-200 scale-95">
+                        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                        </div>
+                        <h3 className="font-bold text-xl text-gray-800 mb-2">Batalkan Purchase Order?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin membatalkan (reject) PO ini? Tindakan ini tidak dapat diubah.</p>
+                        <div className="flex justify-center gap-3">
+                            <button type="button" onClick={() => setIsCancelOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
+                            <button type="button" onClick={handleCancel} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/30 disabled:opacity-70 w-full flex justify-center items-center gap-2">
+                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Ya, Batalkan"}
+                            </button>
                         </div>
                     </div>
                 </div>

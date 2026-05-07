@@ -78,6 +78,7 @@ export default function MasterLocationPage() {
     const handleAddSubmit = async (e) => {
         e.preventDefault()
         if(!formData.name.trim()) return toast.error("Lokasi tidak boleh kosong!")
+        if(!formData.address.trim()) return toast.error("Alamat tidak boleh kosong!")
 
         setIsSubmitting(true)
         try {
@@ -99,6 +100,7 @@ export default function MasterLocationPage() {
     const handleEditSubmit = async (e) => {
         e.preventDefault()
         if(!formData.name.trim()) return toast.error("Lokasi tidak boleh kosong!")
+        if(!formData.address.trim()) return toast.error("Alamat tidak boleh kosong!")
 
         setIsSubmitting(true)
         try {
@@ -274,7 +276,7 @@ export default function MasterLocationPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Alamat <span className="text-red-500">*</span></label>
                                     <textarea 
                                         name="address"
                                         value={formData.address}
@@ -342,7 +344,7 @@ export default function MasterLocationPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Alamat <span className="text-red-500">*</span></label>
                                     <textarea 
                                         name="address"
                                         value={formData.address}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import toast from "react-hot-toast"
 import { getTreatments, createTreatment, updateTreatment, deleteTreatment } from "@/services/treatmentService"
 import { getItems } from "@/services/inventoryService"
+import SearchableSelect from "@/components/SearchableSelect"
 
 export default function MedicalActionsPage() {
     const [treatments, setTreatments] = useState([])
@@ -16,6 +17,7 @@ export default function MedicalActionsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+    const [isDetailOpen, setIsDetailOpen] = useState(false)
 
     // Data states
     const [currentItem, setCurrentItem] = useState(null)
@@ -106,6 +108,11 @@ export default function MedicalActionsPage() {
             items: item.items ? item.items.map(i => ({ id: i.id, quantity: i.pivot?.quantity || 1 })) : []
         })
         setIsEditOpen(true)
+    }
+
+    const handleOpenDetail = (item) => {
+        setCurrentItem(item)
+        setIsDetailOpen(true)
     }
 
     const handleOpenDelete = (item) => {
@@ -275,8 +282,9 @@ export default function MedicalActionsPage() {
                                         </td>
                                         <td className="px-5 py-3">
                                             <div className="flex items-center justify-center gap-1">
-                                                <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg></button>
-                                                <button onClick={() => handleOpenDelete(item)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg></button>
+                                                <button onClick={() => handleOpenDetail(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Lihat Detail"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg></button>
+                                                <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg></button>
+                                                <button onClick={() => handleOpenDelete(item)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hapus"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -290,7 +298,7 @@ export default function MedicalActionsPage() {
             {/* MODAL: ADD/EDIT TREATMENT */}
             {(isAddOpen || isEditOpen) && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 my-8 flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 my-4 flex flex-col h-[85vh] min-h-[600px]">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 className="font-bold text-gray-800">{isEditOpen ? 'Edit Tindakan Medis' : 'Tambah Tindakan Medis'}</h3>
                             <button onClick={() => isEditOpen ? setIsEditOpen(false) : setIsAddOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -325,7 +333,7 @@ export default function MedicalActionsPage() {
                                 {/* Items Section */}
                                 <div className="space-y-4 pt-4">
                                     <div className="flex justify-between items-center border-b pb-2">
-                                        <h4 className="text-xs font-bold text-gray-800">Barang & Obat Digunakan</h4>
+                                        <h4 className="text-xs font-bold text-gray-800">Alat & Bahan Yang Digunakan</h4>
                                         <button type="button" onClick={handleAddItemRow} className="text-xs text-primary font-bold hover:bg-primary/10 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                             Tambah Item
@@ -337,22 +345,20 @@ export default function MedicalActionsPage() {
                                             <p className="text-xs text-gray-400">Belum ada barang yang ditambahkan untuk tindakan ini.</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 pb-40">
                                             {formData.items.map((itemRow, index) => (
                                                 <div key={index} className="flex gap-3 items-center bg-gray-50 p-2 rounded-xl border border-gray-100 animate-in slide-in-from-left-2">
                                                     <div className="w-8 text-center text-[10px] font-bold text-gray-400">{index + 1}</div>
                                                     <div className="flex-1">
-                                                        <select 
-                                                            value={itemRow.id} 
-                                                            onChange={(e) => handleItemChange(index, 'id', e.target.value)} 
-                                                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
-                                                            required
-                                                        >
-                                                            <option value="">-- Pilih Barang --</option>
-                                                            {inventoryItems.map(inv => (
-                                                                <option key={inv.id} value={inv.id}>{inv.name} {inv.type === 'non-stock' ? '(Non-Stock)' : ''}</option>
-                                                            ))}
-                                                        </select>
+                                                        <SearchableSelect 
+                                                            options={inventoryItems.map(inv => ({
+                                                                id: inv.id,
+                                                                name: `${inv.name} ${inv.type === 'non-stock' ? '(Non-Stock)' : ''}`
+                                                            }))}
+                                                            value={itemRow.id}
+                                                            onChange={(val) => handleItemChange(index, 'id', val)}
+                                                            placeholder="Pilih Alat/Bahan..."
+                                                        />
                                                     </div>
                                                     <div className="w-24">
                                                         <input 
@@ -399,6 +405,79 @@ export default function MedicalActionsPage() {
                             <button type="button" onClick={() => setIsDeleteOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
                             <button type="button" onClick={handleDeleteConfirm} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/30 disabled:opacity-70 w-full flex justify-center items-center gap-2">
                                 {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Ya, Hapus"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: DETAIL TREATMENT */}
+            {isDetailOpen && currentItem && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-blue-500"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                                Detail Tindakan Medis
+                            </h3>
+                            <button onClick={() => setIsDetailOpen(false)} className="text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full p-1 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="overflow-y-auto custom-scrollbar p-6 flex-1 space-y-6">
+                            {/* General Info */}
+                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex gap-4">
+                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-blue-100 flex items-center justify-center shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-blue-600"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.315 48.315 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="text-sm font-bold text-gray-900">{currentItem.name}</h4>
+                                        {currentItem.is_active ? 
+                                            <span className="px-2 py-0.5 bg-green-100 text-green-700 font-bold text-[9px] uppercase rounded-full">Aktif</span> : 
+                                            <span className="px-2 py-0.5 bg-gray-200 text-gray-600 font-bold text-[9px] uppercase rounded-full">Nonaktif</span>
+                                        }
+                                    </div>
+                                    <p className="text-[10px] font-black text-blue-600 mb-2 uppercase tracking-widest">{currentItem.code}</p>
+                                    <p className="text-xs text-gray-600 bg-white p-2 rounded-lg border border-blue-50 leading-relaxed">
+                                        {currentItem.description || <span className="italic text-gray-400">Tidak ada deskripsi.</span>}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Connected Items */}
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-800 border-b pb-2 mb-3">Alat & Bahan yang Digunakan ({currentItem.items?.length || 0})</h4>
+                                {!currentItem.items || currentItem.items.length === 0 ? (
+                                    <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
+                                        <p className="text-xs text-gray-400">Tidak ada barang yang terhubung ke tindakan ini.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {currentItem.items.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center font-bold text-gray-400 text-xs">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-800">{item.name}</p>
+                                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">{item.category?.name || 'Tanpa Kategori'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-black">
+                                                    {item.pivot?.quantity || 1} Pcs
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-2 shrink-0">
+                            <button onClick={() => setIsDetailOpen(false)} className="px-6 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/30 transition-colors">
+                                Tutup
                             </button>
                         </div>
                     </div>

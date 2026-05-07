@@ -32,7 +32,10 @@ export default function InventoryPage() {
         min_stock: "",
         type: "stock",
         initial_stock: "",
-        expiry_date: ""
+        unit_cost: "",
+        expiry_date: "",
+        unit: "",
+        brand: ""
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -87,7 +90,7 @@ export default function InventoryPage() {
     }
 
     const handleOpenAdd = () => {
-        setFormData({ name: "", category_id: "", min_stock: "", type: "stock", initial_stock: "", expiry_date: "" })
+        setFormData({ name: "", category_id: "", min_stock: "", type: "stock", initial_stock: "", unit_cost: "", expiry_date: "", unit: "", brand: "" })
         setIsAddOpen(true)
     }
 
@@ -102,7 +105,9 @@ export default function InventoryPage() {
             name: item.name,
             category_id: item.category_id,
             min_stock: item.min_stock,
-            type: item.type || "stock"
+            type: item.type || "stock",
+            unit: item.unit || "",
+            brand: item.brand || ""
         })
         setIsEditOpen(true)
     }
@@ -145,22 +150,15 @@ export default function InventoryPage() {
         if (!formData.name || !formData.category_id || !formData.min_stock) {
             return toast.error("Harap isi semua field wajib")
         }
+        if (formData.initial_stock && parseInt(formData.initial_stock) > 0 && !formData.expiry_date) {
+            toast.error("Tanggal Kadaluarsa wajib diisi jika Stok Awal > 0")
+            return
+        }
+
         setIsSubmitting(true)
         try {
             const res = await createItem(formData)
             const newItem = res.data?.data || res.data
-            
-            if (formData.initial_stock && parseInt(formData.initial_stock) > 0 && newItem?.id) {
-                if (!formData.expiry_date) {
-                    toast.error("Tanggal Kadaluarsa wajib diisi jika Stok Awal > 0")
-                    setIsSubmitting(false)
-                    return
-                }
-                await adjustStockIn(newItem.id, {
-                    quantity: parseInt(formData.initial_stock),
-                    expiry_date: formData.expiry_date
-                })
-            }
             
             toast.success("Barang berhasil ditambahkan!")
             setIsAddOpen(false)
@@ -282,8 +280,11 @@ export default function InventoryPage() {
                                     <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                         <td className="px-5 py-3 text-gray-500 text-center">{index + 1}</td>
                                         <td className="px-5 py-3 font-medium text-gray-900">
-                                            <div>{item.name}</div>
-                                            <div className="text-[10px] text-gray-400 font-normal uppercase tracking-tighter mt-0.5">{item.type || 'stock'}</div>
+                                            <div className="flex items-center gap-2">
+                                                <span>{item.name}</span>
+                                                {item.brand && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] uppercase tracking-wider">{item.brand}</span>}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 font-normal uppercase tracking-tighter mt-0.5">{item.type || 'stock'} {item.unit && `• ${item.unit}`}</div>
                                         </td>
                                         <td className="px-5 py-3">
                                             <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px] font-medium lowercase">
@@ -346,6 +347,25 @@ export default function InventoryPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Merek</label>
+                                        <input type="text" name="brand" value={formData.brand} onChange={handleInputChange} placeholder="Contoh: 3M, GC, Aqua" className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Satuan</label>
+                                        <input type="text" name="unit" list="unit-options" value={formData.unit} onChange={handleInputChange} placeholder="Ketik atau pilih..." className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" />
+                                        <datalist id="unit-options">
+                                            <option value="Pcs" />
+                                            <option value="Box" />
+                                            <option value="Botol" />
+                                            <option value="Tube" />
+                                            <option value="Ampul" />
+                                            <option value="Set" />
+                                            <option value="ml" />
+                                        </datalist>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
                                         <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Kategori <span className="text-red-500">*</span></label>
                                         <select name="category_id" value={formData.category_id} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" required>
                                             <option value="">Pilih Kategori</option>
@@ -373,10 +393,22 @@ export default function InventoryPage() {
                                     </div>
                                 </div>
                                 {formData.initial_stock && parseInt(formData.initial_stock) > 0 && (
-                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Tanggal Kadaluarsa <span className="text-red-500">*</span></label>
-                                        <input type="date" name="expiry_date" value={formData.expiry_date} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" required />
-                                        <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium tracking-tight">Wajib diisi karena stok awal ditambahkan.</p>
+                                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Tanggal Kadaluarsa <span className="text-red-500">*</span></label>
+                                            <input type="date" name="expiry_date" value={formData.expiry_date} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" required />
+                                            <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium tracking-tight">Wajib untuk stok awal.</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Harga Satuan (HPP)</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="text-gray-500 text-sm">Rp</span>
+                                                </div>
+                                                <input type="number" name="unit_cost" value={formData.unit_cost} onChange={handleInputChange} placeholder="0" className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" />
+                                            </div>
+                                            <p className="text-[9px] text-gray-400 mt-1 uppercase font-medium tracking-tight">Opsional, untuk perhitungan COGS.</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -407,6 +439,16 @@ export default function InventoryPage() {
                                 <div>
                                     <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Nama Barang <span className="text-red-500">*</span></label>
                                     <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" required />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Merek</label>
+                                        <input type="text" name="brand" value={formData.brand} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Satuan</label>
+                                        <input type="text" name="unit" list="unit-options" value={formData.unit} onChange={handleInputChange} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" />
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -582,15 +624,24 @@ export default function InventoryPage() {
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div>
-                                <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Nama Barang</h4>
-                                <p className="text-sm font-semibold text-gray-900">{currentItem.name}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Kategori</h4>
-                                    <p className="text-sm font-medium text-gray-700">{currentItem.category?.name || "-"}</p>
+                                    <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Nama Barang</h4>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold text-gray-900">{currentItem.name}</p>
+                                        {currentItem.brand && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] uppercase tracking-wider font-bold">{currentItem.brand}</span>}
+                                    </div>
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Satuan</h4>
+                                        <p className="text-sm font-medium text-gray-700">{currentItem.unit || "-"}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Kategori</h4>
+                                        <p className="text-sm font-medium text-gray-700">{currentItem.category?.name || "-"}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Tipe Barang</h4>
                                     <p className="text-sm font-medium text-gray-700 capitalize">{currentItem.type || "stock"}</p>

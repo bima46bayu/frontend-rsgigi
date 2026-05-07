@@ -413,18 +413,40 @@ export default function HistoryPage() {
                                                         <tr className="text-xs text-gray-500">
                                                             <th className="px-4 py-2 font-semibold">Nama Item</th>
                                                             <th className="px-4 py-2 font-semibold text-center w-24">Jumlah</th>
+                                                            <th className="px-4 py-2 font-semibold text-right w-32">Biaya (HPP)</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="text-sm">
                                                         {recordDetails.items.map((it, idx) => (
                                                             <tr key={idx} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                                                                 <td className="px-4 py-2 font-medium text-gray-800">
-                                                                    {it.item?.name || `Item #${it.item_id}`}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span>{it.item?.name || `Item #${it.item_id}`}</span>
+                                                                        {it.item?.brand && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] uppercase tracking-wider">{it.item.brand}</span>}
+                                                                    </div>
                                                                 </td>
-                                                                <td className="px-4 py-2 text-center text-gray-600 font-bold bg-blue-50/50">{it.quantity}</td>
+                                                                <td className="px-4 py-2 text-center text-gray-600 font-bold bg-blue-50/50">
+                                                                    {it.quantity} <span className="text-[10px] font-normal uppercase">{it.item?.unit}</span>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-right font-mono text-xs text-gray-700">
+                                                                    {recordDetails.status === 'completed' && it.subtotal ? 
+                                                                        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(it.subtotal) 
+                                                                        : '-'}
+                                                                </td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
+                                                    <tfoot className="bg-gray-50 border-t border-gray-200">
+                                                        <tr>
+                                                            <td colSpan="2" className="px-4 py-2 text-right font-bold text-xs text-gray-600">Total HPP:</td>
+                                                            <td className="px-4 py-2 text-right font-black text-xs text-primary">
+                                                                {recordDetails.status === 'completed' ? 
+                                                                    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(
+                                                                        recordDetails.items.reduce((sum, it) => sum + (Number(it.subtotal) || 0), 0)
+                                                                    ) : '-'}
+                                                            </td>
+                                                        </tr>
+                                                    </tfoot>
                                                 </table>
                                             </div>
                                         ) : (

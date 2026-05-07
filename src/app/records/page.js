@@ -129,6 +129,8 @@ export default function RecordsPage() {
             let newCart = [...s.cart]
             if (treatment.items && treatment.items.length > 0) {
                 treatment.items.forEach(tItem => {
+                    // Ambil data terbaru dari inventoryItems (untuk stok yang akurat)
+                    const fullItem = inventoryItems.find(i => i.id === tItem.id) || tItem;
                     const existingIndex = newCart.findIndex(c => c.item.id === tItem.id)
                     const addQty = tItem.pivot ? tItem.pivot.quantity : 1;
                     
@@ -139,7 +141,7 @@ export default function RecordsPage() {
                         }
                     } else {
                         newCart.push({
-                            item: tItem,
+                            item: fullItem,
                             quantity: addQty
                         })
                     }
@@ -184,6 +186,9 @@ export default function RecordsPage() {
     }
 
     const handleAddExtraItem = (item) => {
+        // Gunakan data dari inventoryItems agar stok terupdate
+        const fullItem = inventoryItems.find(i => i.id === item.id) || item;
+        
         updateActiveSession(s => {
             const newCart = [...s.cart]
             const existingIndex = newCart.findIndex(c => c.item.id === item.id)
@@ -191,7 +196,7 @@ export default function RecordsPage() {
             if (existingIndex >= 0) {
                 newCart[existingIndex] = { ...newCart[existingIndex], quantity: newCart[existingIndex].quantity + 1 }
             } else {
-                newCart.push({ item: item, quantity: 1 })
+                newCart.push({ item: fullItem, quantity: 1 })
             }
             return { ...s, cart: newCart }
         })
@@ -216,6 +221,11 @@ export default function RecordsPage() {
         updateActiveSession(s => {
             return { ...s, cart: s.cart.filter(c => c.item.id !== itemId) }
         })
+    }
+
+    const clearActiveSession = () => {
+        updateActiveSession({ cart: [], selectedTreatments: [], patientName: "" })
+        toast.success("Keranjang draft dikosongkan")
     }
 
     const handleCheckout = async () => {
@@ -420,12 +430,21 @@ export default function RecordsPage() {
                 </div>
 
                 {/* Checkout Header */}
-                <div className="p-5 border-b border-slate-100 bg-slate-900 text-white relative">
-                    <h2 className="text-lg font-bold flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                        Rincian Tindakan
-                    </h2>
-                    <p className="text-xs text-slate-300 font-medium mt-1">Selesaikan rekam bahan untuk <span className="font-bold text-amber-400">{activeSession.name}</span>.</p>
+                <div className="p-5 border-b border-slate-100 bg-slate-900 text-white relative flex justify-between items-start">
+                    <div>
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                            Rincian Tindakan
+                        </h2>
+                        <p className="text-xs text-slate-300 font-medium mt-1">Selesaikan rekam bahan untuk <span className="font-bold text-amber-400">{activeSession.name}</span>.</p>
+                    </div>
+                    <button 
+                        onClick={clearActiveSession}
+                        className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-400 transition-colors bg-white/5 px-2 py-1 rounded-lg border border-white/10"
+                        title="Kosongkan semua tindakan dan item"
+                    >
+                        Clear All
+                    </button>
                 </div>
 
                 {/* Patient Info */}
@@ -473,9 +492,11 @@ export default function RecordsPage() {
                             {activeSession.cart.map((c) => (
                                 <div key={c.item.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl shadow-sm">
                                     <div className="flex-1 pr-3">
-                                        <div className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight mb-1">{c.item.name}</div>
+                                        <div className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight mb-1">
+                                            {c.item.name} <span className="text-[10px] text-slate-400 font-normal ml-1 lowercase">({c.item.unit || 'pcs'})</span>
+                                        </div>
                                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                            {c.item.type === 'non-stock' ? 'Bahan Ekstra' : `Tersedia: ${c.item.total_stock}`}
+                                            {c.item.type === 'non-stock' ? 'Bahan Ekstra' : `Stok Tersedia: ${c.item.total_stock ?? 0} ${c.item.unit || 'pcs'}`}
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
@@ -484,7 +505,7 @@ export default function RecordsPage() {
                                         </button>
                                         <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200">
                                             <button onClick={() => updateCartQty(c.item.id, -1)} className="px-2 py-1 text-slate-600 hover:text-slate-900 transition-colors font-bold">−</button>
-                                            <span className="px-2 text-xs font-black text-slate-800 w-8 text-center">{c.quantity}</span>
+                                            <span className="px-2 text-xs font-black text-slate-800 w-10 text-center">{c.quantity}</span>
                                             <button onClick={() => updateCartQty(c.item.id, 1)} className="px-2 py-1 text-primary hover:text-blue-700 transition-colors font-bold">+</button>
                                         </div>
                                     </div>

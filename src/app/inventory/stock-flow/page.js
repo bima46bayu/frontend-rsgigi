@@ -14,6 +14,15 @@ function StockFlowContent() {
     const [loading, setLoading] = useState(true)
     const [itemName, setItemName] = useState("")
 
+    const formatCurrency = (value) => {
+        if (!value && value !== 0) return "Rp -"
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(value)
+    }
+
     useEffect(() => {
         if (!id) {
             setLoading(false)
@@ -91,6 +100,11 @@ function StockFlowContent() {
                                             {f.stock?.batch_number && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-wider w-max">
                                                     Batch: {f.stock.batch_number}
+                                                </span>
+                                            )}
+                                            {f.stock?.unit_cost > 0 && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider w-max">
+                                                    Harga: {formatCurrency(f.stock.unit_cost)}
                                                 </span>
                                             )}
                                             {(f.reference_type || f.reference_id || f.reference) ? (

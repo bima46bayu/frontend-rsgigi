@@ -1,7 +1,7 @@
 import api, { sendRequest, sendPutRequest, sendDeleteRequest } from "@/lib/api"
 
-export const getItems = () => {
-    return api.get("/items")
+export const getItems = (params = {}) => {
+    return api.get("/items", { params })
 }
 
 export const createItem = (data) => {

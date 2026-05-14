@@ -10,6 +10,8 @@ export default function MasterSupplierPage() {
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
 
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -46,6 +48,7 @@ export default function MasterSupplierPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery)
+            setCurrentPage(1)
         }, 500)
         return () => clearTimeout(timer)
     }, [searchQuery])
@@ -133,6 +136,9 @@ export default function MasterSupplierPage() {
                (s.email?.toLowerCase() || "").includes(query)
     })
 
+    const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage)
+    const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
     return (
         <div className="flex flex-col h-full">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mb-6 flex justify-between items-center gap-4">
@@ -182,14 +188,14 @@ export default function MasterSupplierPage() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredSuppliers.length === 0 ? (
+                            ) : paginatedSuppliers.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="px-6 py-12 text-center text-gray-400">Data tidak ditemukan.</td>
                                 </tr>
                             ) : (
-                                filteredSuppliers.map((s, index) => (
+                                paginatedSuppliers.map((s, index) => (
                                     <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-5 py-3 text-gray-500 text-center">{index + 1}</td>
+                                        <td className="px-5 py-3 text-gray-500 text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                                         <td className="px-5 py-3 font-medium text-gray-800">{s.name}</td>
                                         <td className="px-5 py-3 text-gray-500">{s.phone || "-"}</td>
                                         <td className="px-5 py-3 text-gray-500">{s.email || "-"}</td>
@@ -208,11 +214,46 @@ export default function MasterSupplierPage() {
                 </div>
 
                 <div className="mt-auto p-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                    <div>Menampilkan {filteredSuppliers.length} dari {suppliers.length} data</div>
+                    <div>Menampilkan {paginatedSuppliers.length} baris di halaman {currentPage} (Total {filteredSuppliers.length} hasil)</div>
                     <div className="flex items-center gap-1">
-                        <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Prev</button>
-                        <button className="px-2.5 py-1 rounded bg-primary text-white">1</button>
-                        <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Next</button>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Prev
+                        </button>
+                        
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                                pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                            } else {
+                                pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                                <button 
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`px-2.5 py-1 rounded ${currentPage === pageNum ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </div>

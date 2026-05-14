@@ -45,3 +45,27 @@ export const exportInventory = async () => {
     link.click();
     link.remove();
 }
+
+export const importItems = (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post("/items/import", formData, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    });
+};
+
+export const downloadImportTemplate = async () => {
+    const response = await api.get("/items/import/template", {
+        responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Template_Import_Barang.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+};

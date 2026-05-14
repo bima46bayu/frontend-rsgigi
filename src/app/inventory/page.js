@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
-import { getItems, createItem, updateItem, deleteItem, adjustStockIn, exportInventory } from "@/services/inventoryService"
+import { getItems, createItem, updateItem, deleteItem, adjustStockIn, exportInventory, importItems, downloadImportTemplate } from "@/services/inventoryService"
 import { getCategories } from "@/services/categoryService"
 
 export default function InventoryPage() {
@@ -13,6 +13,8 @@ export default function InventoryPage() {
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 20
 
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -21,6 +23,7 @@ export default function InventoryPage() {
     const [isFlowOpen, setIsFlowOpen] = useState(false)
     const [isBatchOpen, setIsBatchOpen] = useState(false)
     const [isDetailOpen, setIsDetailOpen] = useState(false)
+    const [isImportOpen, setIsImportOpen] = useState(false)
 
     // Data states
     const [currentItem, setCurrentItem] = useState(null)
@@ -40,6 +43,8 @@ export default function InventoryPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isDetailLoading, setIsDetailLoading] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
+    const [isImporting, setIsImporting] = useState(false)
+    const [importFile, setImportFile] = useState(null)
 
     // Helper untuk penanganan error API
     const handleApiError = (error, defaultMsg) => {
@@ -81,6 +86,7 @@ export default function InventoryPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery)
+            setCurrentPage(1)
         }, 500)
         return () => clearTimeout(timer)
     }, [searchQuery])
@@ -214,10 +220,43 @@ export default function InventoryPage() {
         }
     }
 
+    const handleImportSubmit = async (e) => {
+        e.preventDefault()
+        if (!importFile) {
+            return toast.error("Silakan pilih file Excel terlebih dahulu")
+        }
+        
+        setIsImporting(true)
+        const toastId = toast.loading("Sedang mengimport data...")
+        try {
+            await importItems(importFile)
+            toast.success("Data berhasil diimport!", { id: toastId })
+            setIsImportOpen(false)
+            setImportFile(null)
+            loadData()
+        } catch (error) {
+            handleApiError(error, "Gagal mengimport data")
+            toast.dismiss(toastId)
+        } finally {
+            setIsImporting(false)
+        }
+    }
+
+    const handleDownloadTemplate = async () => {
+        try {
+            await downloadImportTemplate()
+        } catch (error) {
+            toast.error("Gagal mendownload template")
+        }
+    }
+
     const filteredItems = items.filter(item => 
         item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         item.category?.name.toLowerCase().includes(debouncedSearch.toLowerCase())
     )
+
+    const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
+    const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
     const getStatusBadge = (status) => {
         switch(status) {
@@ -255,6 +294,13 @@ export default function InventoryPage() {
                         Tambah Barang
                     </button>
                     <button 
+                        onClick={() => setIsImportOpen(true)}
+                        className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12-3-3m0 0-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                        Import Excel
+                    </button>
+                    <button 
                         onClick={handleExport}
                         disabled={isExporting}
                         className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5 disabled:opacity-50"
@@ -290,14 +336,14 @@ export default function InventoryPage() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredItems.length === 0 ? (
+                            ) : paginatedItems.length === 0 ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center text-gray-400">Data tidak ditemukan.</td>
                                 </tr>
                             ) : (
-                                filteredItems.map((item, index) => (
+                                paginatedItems.map((item, index) => (
                                     <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-5 py-3 text-gray-500 text-center">{index + 1}</td>
+                                        <td className="px-5 py-3 text-gray-500 text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                                         <td className="px-5 py-3 font-medium text-gray-900">
                                             <div className="flex items-center gap-2">
                                                 <span>{item.name}</span>
@@ -339,14 +385,98 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="mt-auto p-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                    <div>Menampilkan {filteredItems.length} dari {items.length} data</div>
+                    <div>Menampilkan {paginatedItems.length} baris di halaman {currentPage} (Total {filteredItems.length} hasil)</div>
                     <div className="flex items-center gap-1">
-                        <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Prev</button>
-                        <button className="px-2.5 py-1 rounded bg-primary text-white">1</button>
-                        <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Next</button>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Prev
+                        </button>
+                        
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                                pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                            } else {
+                                pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                                <button 
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`px-2.5 py-1 rounded ${currentPage === pageNum ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* MODAL: IMPORT EXCEL */}
+            {isImportOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800">Import Data Barang</h3>
+                            <button onClick={() => setIsImportOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleImportSubmit} className="p-6">
+                            <div className="space-y-4">
+                                <div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-xs flex gap-3 items-start">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+                                    <div>
+                                        <p className="font-semibold mb-1">Informasi Import:</p>
+                                        <ul className="list-disc pl-3 space-y-0.5">
+                                            <li>Gunakan template excel yang disediakan.</li>
+                                            <li>Jika Kategori belum ada, sistem akan membuatkannya otomatis.</li>
+                                        </ul>
+                                        <button type="button" onClick={handleDownloadTemplate} className="mt-2 text-primary font-bold hover:underline flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                            Download Template
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">File Excel (.xlsx) <span className="text-red-500">*</span></label>
+                                    <input 
+                                        type="file" 
+                                        accept=".xlsx, .xls, .csv" 
+                                        onChange={(e) => setImportFile(e.target.files[0])} 
+                                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button type="button" onClick={() => setIsImportOpen(false)} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+                                <button type="submit" disabled={isImporting || !importFile} className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-lg shadow-green-600/30 flex items-center gap-2 disabled:opacity-50">
+                                    {isImporting && <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                    Upload & Proses
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL: ADD ITEM */}
             {isAddOpen && (

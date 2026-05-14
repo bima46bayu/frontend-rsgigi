@@ -61,7 +61,10 @@ export default function LoginPage() {
 
                     <div>
 
-                        <h1 className="text-3xl font-semibold mb-4">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center p-3 mb-6 shadow-xl">
+                            <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+                        </div>
+                        <h1 className="text-3xl font-bold mb-4">
                             Smart Inventory
                         </h1>
 

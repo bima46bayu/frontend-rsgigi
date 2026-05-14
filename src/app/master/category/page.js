@@ -10,6 +10,8 @@ export default function MasterCategoryPage() {
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
 
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -43,6 +45,7 @@ export default function MasterCategoryPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery)
+            setCurrentPage(1)
         }, 500) // 500ms jeda
 
         return () => clearTimeout(timer)
@@ -129,6 +132,9 @@ export default function MasterCategoryPage() {
         cat.name.toLowerCase().includes(debouncedSearch.toLowerCase())
     )
 
+    const totalPages = Math.ceil(filteredCategories.length / itemsPerPage)
+    const paginatedCategories = filteredCategories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
     return (
         <div className="flex flex-col h-full">
             
@@ -178,16 +184,16 @@ export default function MasterCategoryPage() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredCategories.length === 0 ? (
+                            ) : paginatedCategories.length === 0 ? (
                                 <tr>
                                     <td colSpan="3" className="px-6 py-12 text-center text-gray-400">
                                         Data tidak ditemukan.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredCategories.map((cat, index) => (
+                                paginatedCategories.map((cat, index) => (
                                     <tr key={cat.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-5 py-3 text-gray-500 text-center">{index + 1}</td>
+                                        <td className="px-5 py-3 text-gray-500 text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                                         <td className="px-5 py-3 font-medium text-gray-800">{cat.name}</td>
                                         <td className="px-5 py-3">
                                             <div className="flex items-center justify-center gap-2">
@@ -216,21 +222,46 @@ export default function MasterCategoryPage() {
 
                 {/* Pagination */}
                 <div className="mt-auto p-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                    <div>Menampilkan {filteredCategories.length} dari {categories.length} data</div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <span>Halaman:</span>
-                            <select className="border border-gray-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:border-primary">
-                                <option>1</option>
-                                <option>2</option>
-                                <option>3</option>
-                            </select>
-                        </div>
-                        <div className="flex gap-1">
-                            <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Prev</button>
-                            <button className="px-2.5 py-1 rounded bg-primary text-white">1</button>
-                            <button className="px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 opacity-50 cursor-not-allowed">Next</button>
-                        </div>
+                    <div>Menampilkan {paginatedCategories.length} baris di halaman {currentPage} (Total {filteredCategories.length} hasil)</div>
+                    <div className="flex items-center gap-1">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Prev
+                        </button>
+                        
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                                pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                            } else {
+                                pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                                <button 
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`px-2.5 py-1 rounded ${currentPage === pageNum ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className={`px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 ${currentPage === totalPages || totalPages === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </div>

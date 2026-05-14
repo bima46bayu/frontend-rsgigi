@@ -71,8 +71,8 @@ export default function Sidebar() {
                 <div className="relative z-10">
 
                     <div className="flex items-center gap-3 mb-12 px-2">
-                        <div className="w-10 h-10 bg-white rounded-[14px] flex justify-center items-center font-bold text-xl text-primary shadow-[4px_4px_10px_rgba(0,0,0,0.05),-4px_-4px_10px_rgba(255,255,255,0.8)]">
-                            S
+                        <div className="w-10 h-10 bg-white rounded-[14px] flex justify-center items-center overflow-hidden shadow-[4px_4px_10px_rgba(0,0,0,0.05),-4px_-4px_10px_rgba(255,255,255,0.8)] p-1">
+                            <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         <div>
                             <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary leading-tight">

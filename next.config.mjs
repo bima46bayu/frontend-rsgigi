@@ -43,7 +43,6 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  trailingSlash: true,
   // Tetap mulus dengan turbopack saat npm run dev di lokal
   turbopack: {},
 };

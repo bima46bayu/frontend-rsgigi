@@ -1,9 +1,17 @@
 Options -Indexes
+DirectorySlash Off
 ErrorDocument 404 /404.html
 
 RewriteEngine On
-# Jika ada URL tanpa akhiran garis miring (slash) dan itu adalah direktori,
-# tambahkan garis miring agar Apache bisa meload index.html di dalamnya.
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteCond %{REQUEST_URI} !/$
-RewriteRule ^(.*)$ $1/ [R=301,L]
+
+# 1. Hapus garis miring di akhir URL (contoh: /inventory/ menjadi /inventory)
+RewriteCond %{REQUEST_URI} ^/(.*)/$
+RewriteRule ^(.*)/$ /$1 [R=301,L]
+
+# 2. Tangani halaman utama (root)
+RewriteRule ^$ index.html [L]
+
+# 3. Secara internal layani file .html jika file-nya ada
+# (Ini mencegah Apache kebingungan antara file category.html dan folder category/)
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.*)$ $1.html [L]

@@ -1,12 +1,9 @@
+Options -Indexes
+ErrorDocument 404 /404.html
+
 RewriteEngine On
-
-# 1. Coba tambahkan .html untuk URL (contoh: /inventory menjadi /inventory.html)
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME}.html -f
-RewriteRule ^(.*)$ $1.html [L]
-
-# 2. Jika tidak ketemu juga (misal rute dinamis), baru fallback ke index.html
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [QSA,L]
+# Jika ada URL tanpa akhiran garis miring (slash) dan itu adalah direktori,
+# tambahkan garis miring agar Apache bisa meload index.html di dalamnya.
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} !/$
+RewriteRule ^(.*)$ $1/ [R=301,L]

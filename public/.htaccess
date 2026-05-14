@@ -1,3 +1,12 @@
 RewriteEngine On
+
+# 1. Coba tambahkan .html untuk URL (contoh: /inventory menjadi /inventory.html)
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.*)$ $1.html [L]
+
+# 2. Jika tidak ketemu juga (misal rute dinamis), baru fallback ke index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [QSA,L]

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
-import { getItems, createItem, updateItem, deleteItem, adjustStockIn, exportInventory, importItems, downloadImportTemplate } from "@/services/inventoryService"
+import { getItems, createItem, updateItem, deleteItem, adjustStockIn, exportInventory, importItems, downloadImportTemplate, bulkDeleteItems, bulkUpdateItems } from "@/services/inventoryService"
 import { getCategories } from "@/services/categoryService"
 
 export default function InventoryPage() {
@@ -16,6 +16,13 @@ export default function InventoryPage() {
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 20
 
+    // Filter states
+    const [filterStatus, setFilterStatus] = useState("")
+    const [filterCategory, setFilterCategory] = useState("")
+    const [filterType, setFilterType] = useState("")
+    const [filterUnit, setFilterUnit] = useState("")
+    const [showFilters, setShowFilters] = useState(false)
+
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -24,6 +31,20 @@ export default function InventoryPage() {
     const [isBatchOpen, setIsBatchOpen] = useState(false)
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isImportOpen, setIsImportOpen] = useState(false)
+    const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false)
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
+    const [isSelectionMode, setIsSelectionMode] = useState(false)
+    const [showSelectionActions, setShowSelectionActions] = useState(false)
+
+    // Selection state
+    const [selectedIds, setSelectedIds] = useState([])
+    const [bulkEditData, setBulkEditData] = useState({
+        category_id: "",
+        type: "",
+        min_stock: "",
+        unit: "",
+        brand: ""
+    })
 
     // Data states
     const [currentItem, setCurrentItem] = useState(null)
@@ -198,9 +219,101 @@ export default function InventoryPage() {
             await deleteItem(currentItem.id)
             toast.success("Barang berhasil dihapus")
             setIsDeleteOpen(false)
+            setSelectedIds(prev => prev.filter(id => id !== currentItem.id))
             loadData()
         } catch (error) {
             handleApiError(error, "Gagal menghapus barang")
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            // Select all FILTERED items (across all pages)
+            setSelectedIds(filteredItems.map(item => item.id))
+        } else {
+            setSelectedIds([])
+        }
+    }
+
+    const handleClearSelection = () => {
+        setSelectedIds([])
+        setIsSelectionMode(false)
+        setShowSelectionActions(false)
+    }
+
+    const toggleSelectionMode = () => {
+        if (isSelectionMode) {
+            setSelectedIds([])
+            setShowSelectionActions(false)
+        }
+        setIsSelectionMode(!isSelectionMode)
+    }
+
+    const handleSelectItem = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        )
+    }
+
+    const handleOpenBulkEdit = () => {
+        setBulkEditData({
+            category_id: "",
+            type: "",
+            min_stock: "",
+            unit: "",
+            brand: ""
+        })
+        setIsBulkEditOpen(true)
+    }
+
+    const handleBulkEditSubmit = async (e) => {
+        e.preventDefault()
+        if (selectedIds.length === 0) return
+
+        // Filter out empty strings so we don't overwrite with empty values if not changed
+        const dataToUpdate = {}
+        if (bulkEditData.category_id) dataToUpdate.category_id = bulkEditData.category_id
+        if (bulkEditData.type) dataToUpdate.type = bulkEditData.type
+        if (bulkEditData.min_stock !== "") dataToUpdate.min_stock = bulkEditData.min_stock
+        if (bulkEditData.unit) dataToUpdate.unit = bulkEditData.unit
+        if (bulkEditData.brand) dataToUpdate.brand = bulkEditData.brand
+
+        if (Object.keys(dataToUpdate).length === 0) {
+            return toast.error("Pilih minimal satu field untuk diperbarui")
+        }
+
+        setIsSubmitting(true)
+        const toastId = toast.loading(`Memperbarui ${selectedIds.length} barang...`)
+        try {
+            await bulkUpdateItems(selectedIds, dataToUpdate)
+            toast.success(`${selectedIds.length} barang berhasil diperbarui!`, { id: toastId })
+            setIsBulkEditOpen(false)
+            setSelectedIds([])
+            loadData()
+        } catch (error) {
+            handleApiError(error, "Gagal memperbarui barang secara massal")
+            toast.dismiss(toastId)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleBulkDeleteConfirm = async () => {
+        if (selectedIds.length === 0) return
+        
+        setIsSubmitting(true)
+        const toastId = toast.loading(`Menghapus ${selectedIds.length} barang...`)
+        try {
+            await bulkDeleteItems(selectedIds)
+            toast.success(`${selectedIds.length} barang berhasil dihapus!`, { id: toastId })
+            setSelectedIds([])
+            setIsBulkDeleteOpen(false)
+            loadData()
+        } catch (error) {
+            handleApiError(error, "Gagal menghapus barang-barang terpilih")
+            toast.dismiss(toastId)
         } finally {
             setIsSubmitting(false)
         }
@@ -250,10 +363,18 @@ export default function InventoryPage() {
         }
     }
 
-    const filteredItems = items.filter(item => 
-        item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        item.category?.name.toLowerCase().includes(debouncedSearch.toLowerCase())
-    )
+    const filteredItems = items.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                              item.category?.name.toLowerCase().includes(debouncedSearch.toLowerCase());
+        const matchesStatus = filterStatus ? item.alert_status === filterStatus : true;
+        const matchesCategory = filterCategory ? String(item.category_id) === String(filterCategory) : true;
+        const matchesType = filterType ? item.type === filterType : true;
+        const matchesUnit = filterUnit ? item.unit === filterUnit : true;
+        
+        return matchesSearch && matchesStatus && matchesCategory && matchesType && matchesUnit;
+    })
+
+    const uniqueUnits = [...new Set(items.map(i => i.unit).filter(Boolean))];
 
     const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
     const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -283,15 +404,61 @@ export default function InventoryPage() {
                         className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 relative">
+                    {!isSelectionMode ? (
+                        <button 
+                            onClick={toggleSelectionMode}
+                            className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                            Pilih Beberapa
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowSelectionActions(!showSelectionActions)}
+                                    disabled={selectedIds.length === 0}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all shadow-lg ${selectedIds.length > 0 ? 'bg-primary text-white shadow-primary/30' : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'}`}
+                                >
+                                    <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px]">{selectedIds.length}</span>
+                                    Aksi Pilihan
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-3 h-3 transition-transform ${showSelectionActions ? 'rotate-180' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                </button>
+
+                                {showSelectionActions && selectedIds.length > 0 && (
+                                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-[70] animate-in fade-in zoom-in-95 duration-200">
+                                        <button 
+                                            onClick={() => { handleOpenBulkEdit(); setShowSelectionActions(false); }}
+                                            className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-amber-500"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                                            Edit Massal
+                                        </button>
+                                        <button 
+                                            onClick={() => { setIsBulkDeleteOpen(true); setShowSelectionActions(false); }}
+                                            className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                                            Hapus Terpilih
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <button 
+                                onClick={handleClearSelection}
+                                className="px-3 py-1.5 border border-red-200 text-red-500 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    )}
                     <button 
-                        onClick={handleOpenAdd}
-                        className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-1.5"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${showFilters ? 'bg-primary/10 border-primary/20 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Tambah Barang
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                        Filter
                     </button>
                     <button 
                         onClick={() => setIsImportOpen(true)}
@@ -308,6 +475,67 @@ export default function InventoryPage() {
                         {isExporting ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div> : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>}
                         Export
                     </button>
+
+                    <div className="w-px h-6 bg-gray-100 mx-1"></div>
+
+                    <button 
+                        onClick={handleOpenAdd}
+                        className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg shadow-primary/30 flex items-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Tambah Barang
+                    </button>
+
+                    {/* Filter Popover */}
+                    {showFilters && (
+                        <div className="absolute top-full right-0 mt-2 w-[90vw] max-w-[500px] sm:w-[500px] z-[60] bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50">
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                                    Filter Pencarian
+                                </h4>
+                                <button onClick={() => { setFilterStatus(""); setFilterCategory(""); setFilterType(""); setFilterUnit(""); }} className="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded-md font-bold hover:bg-red-100 transition-colors">Reset Filter</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status Peringatan</label>
+                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Status</option>
+                                        <option value="normal">Normal</option>
+                                        <option value="warning">Warning</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Kategori</label>
+                                    <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Kategori</option>
+                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Tipe Barang</label>
+                                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Tipe</option>
+                                        <option value="stock">Stock</option>
+                                        <option value="non-stock">Non-Stock</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Satuan</label>
+                                    <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Satuan</option>
+                                        {uniqueUnits.map((u, i) => <option key={i} value={u}>{u}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex justify-end pt-2 border-t border-gray-50">
+                                <button onClick={() => setShowFilters(false)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors shadow-md">Terapkan Filter</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -317,7 +545,19 @@ export default function InventoryPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50/50 border-b border-gray-100 text-gray-500 text-xs">
-                                <th className="px-5 py-3 font-semibold w-12 text-center">No</th>
+                                <th className="px-5 py-3 font-semibold w-12 text-center text-gray-500">
+                                    {isSelectionMode ? (
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer animate-in zoom-in duration-200"
+                                            checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
+                                            onChange={handleSelectAll}
+                                            title={selectedIds.length === filteredItems.length ? "Hapus semua pilihan" : "Pilih semua barang (lintas halaman)"}
+                                        />
+                                    ) : (
+                                        "No"
+                                    )}
+                                </th>
                                 <th className="px-5 py-3 font-semibold">Nama Barang</th>
                                 <th className="px-5 py-3 font-semibold">Kategori</th>
                                 <th className="px-5 py-3 font-semibold text-center">Stok</th>
@@ -342,8 +582,19 @@ export default function InventoryPage() {
                                 </tr>
                             ) : (
                                 paginatedItems.map((item, index) => (
-                                    <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-5 py-3 text-gray-500 text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                <tr key={item.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${selectedIds.includes(item.id) ? 'bg-primary/5' : ''}`}>
+                                        <td className="px-5 py-3 text-center">
+                                            {isSelectionMode ? (
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer animate-in zoom-in duration-200"
+                                                    checked={selectedIds.includes(item.id)}
+                                                    onChange={() => handleSelectItem(item.id)}
+                                                />
+                                            ) : (
+                                                <span className="text-gray-400 font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</span>
+                                            )}
+                                        </td>
                                         <td className="px-5 py-3 font-medium text-gray-900">
                                             <div className="flex items-center gap-2">
                                                 <span>{item.name}</span>
@@ -751,7 +1002,7 @@ export default function InventoryPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         </div>
                         <h3 className="font-bold text-xl text-gray-800 mb-2">Hapus Barang?</h3>
-                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menghapus <span className="font-bold text-gray-800">"{currentItem?.name}"</span>? Akun ini tidak akan bisa login kembali.</p>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menghapus <span className="font-bold text-gray-800">"{currentItem?.name}"</span>? Data ini akan dihapus secara permanen dari sistem.</p>
                         <div className="flex justify-center gap-3">
                             <button type="button" onClick={() => setIsDeleteOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
                             <button type="button" onClick={handleDeleteConfirm} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/30 disabled:opacity-70 w-full flex justify-center items-center gap-2">
@@ -816,6 +1067,110 @@ export default function InventoryPage() {
                         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
                             <button type="button" onClick={() => setIsDetailOpen(false)} className="px-4 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">Tutup</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: BULK DELETE CONFIRMATION */}
+            {isBulkDeleteOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in duration-200">
+                        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                        </div>
+                        <h3 className="font-bold text-xl text-gray-800 mb-2">Hapus {selectedIds.length} Barang?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menghapus <span className="font-bold text-red-600">{selectedIds.length}</span> barang terpilih secara permanen? Tindakan ini tidak dapat dibatalkan.</p>
+                        <div className="flex justify-center gap-3">
+                            <button type="button" onClick={() => setIsBulkDeleteOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
+                            <button type="button" onClick={handleBulkDeleteConfirm} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/30 disabled:opacity-70 w-full flex justify-center items-center gap-2">
+                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Ya, Hapus Semua"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL: BULK EDIT */}
+            {isBulkEditOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-amber-50/50">
+                            <div>
+                                <h3 className="font-bold text-gray-800 text-sm">Edit Massal ({selectedIds.length} Barang)</h3>
+                                <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">Kosongkan jika tidak ingin diubah</p>
+                            </div>
+                            <button onClick={() => setIsBulkEditOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleBulkEditSubmit} className="p-6">
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Kategori</label>
+                                        <select 
+                                            value={bulkEditData.category_id} 
+                                            onChange={(e) => setBulkEditData({...bulkEditData, category_id: e.target.value})}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                        >
+                                            <option value="">Jangan Ubah</option>
+                                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Tipe Barang</label>
+                                        <select 
+                                            value={bulkEditData.type} 
+                                            onChange={(e) => setBulkEditData({...bulkEditData, type: e.target.value})}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                        >
+                                            <option value="">Jangan Ubah</option>
+                                            <option value="stock">Stock</option>
+                                            <option value="non-stock">Non-Stock</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Merek</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Kosongkan jika tidak diubah"
+                                            value={bulkEditData.brand}
+                                            onChange={(e) => setBulkEditData({...bulkEditData, brand: e.target.value})}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Satuan</label>
+                                        <input 
+                                            type="text" 
+                                            list="unit-options"
+                                            placeholder="Kosongkan jika tidak diubah"
+                                            value={bulkEditData.unit}
+                                            onChange={(e) => setBulkEditData({...bulkEditData, unit: e.target.value})}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Minimal Stok Baru</label>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Kosongkan jika tidak diubah"
+                                        value={bulkEditData.min_stock}
+                                        onChange={(e) => setBulkEditData({...bulkEditData, min_stock: e.target.value})}
+                                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end gap-2">
+                                <button type="button" onClick={() => setIsBulkEditOpen(false)} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+                                <button type="submit" disabled={isSubmitting} className="px-3 py-1.5 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg shadow-lg shadow-amber-500/30 flex items-center gap-2">
+                                    {isSubmitting && <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                    Terapkan ke {selectedIds.length} Barang
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import toast from "react-hot-toast"
-import { getRecords, completeRecord, rejectRecord, getRecordDetails, updateRecordItems, exportHistory } from "@/services/recordService"
+import { getRecords, completeRecord, rejectRecord, getRecordDetails, updateRecordItems, exportHistory, deleteRecordDraft } from "@/services/recordService"
 import DateRangePicker from "@/components/DateRangePicker"
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
@@ -11,6 +11,14 @@ export default function HistoryPage() {
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
+
+    // Filter states
+    const [filterStatus, setFilterStatus] = useState("")
+    const [filterDateRange, setFilterDateRange] = useState({
+        start_date: "",
+        end_date: ""
+    })
+    const [showFilters, setShowFilters] = useState(false)
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
@@ -150,15 +158,24 @@ export default function HistoryPage() {
             } else if (confirmAction === 'reject') {
                 await rejectRecord(currentRecord.id)
                 toast.success("Tindakan berhasil ditolak")
+            } else if (confirmAction === 'delete') {
+                await deleteRecordDraft(currentRecord.id)
+                toast.success("Draft rekam medis berhasil dihapus permanen")
             }
             setIsConfirmOpen(false)
-            if (isDetailOpen) {
-                // Refresh details if modal was open
+            
+            // Close details if the record was deleted
+            if (isDetailOpen && confirmAction === 'delete') {
+                setIsDetailOpen(false)
+            } else if (isDetailOpen) {
+                // Refresh details if modal was open for other actions
                 handleOpenDetail(currentRecord)
             }
+            
             loadData(currentPage) // trigger refresh
         } catch (error) {
-            toast.error("Gagal memproses tindakan. Pastikan data valid.")
+            console.error(error)
+            toast.error(error.response?.data?.message || "Gagal memproses tindakan. Pastikan data valid.")
         } finally {
             setIsSubmitting(false)
         }
@@ -180,11 +197,21 @@ export default function HistoryPage() {
         }
     }
 
-    const filteredRecords = records.filter(r => 
-        (r.patient_name || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        (r.code || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        String(r.id).includes(debouncedSearch)
-    )
+    const filteredRecords = records.filter(r => {
+        const matchesSearch = (r.patient_name || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                              (r.code || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                              String(r.id).includes(debouncedSearch);
+        
+        const matchesStatus = filterStatus ? r.status === filterStatus : true;
+        
+        let matchesDate = true;
+        if (filterDateRange.start_date && filterDateRange.end_date) {
+            const recordDate = new Date(r.created_at).toISOString().split('T')[0];
+            matchesDate = recordDate >= filterDateRange.start_date && recordDate <= filterDateRange.end_date;
+        }
+
+        return matchesSearch && matchesStatus && matchesDate;
+    })
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -211,7 +238,14 @@ export default function HistoryPage() {
                         className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 relative">
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${showFilters ? 'bg-primary/10 border-primary/20 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                        Filter
+                    </button>
                     <button 
                         onClick={() => setIsExportModalOpen(true)}
                         className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5"
@@ -219,6 +253,42 @@ export default function HistoryPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                         Export
                     </button>
+
+                    {/* Filter Popover */}
+                    {showFilters && (
+                        <div className="absolute top-full right-0 mt-2 w-[90vw] max-w-[500px] sm:w-[500px] z-[60] bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50">
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                                    Filter Riwayat
+                                </h4>
+                                <button onClick={() => { setFilterStatus(""); setFilterDateRange({start_date: "", end_date: ""}); }} className="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded-md font-bold hover:bg-red-100 transition-colors">Reset Filter</button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Rentang Tanggal</label>
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                        <DateRangePicker 
+                                            value={filterDateRange} 
+                                            onChange={(range) => setFilterDateRange(range)} 
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status Rekam Medis</label>
+                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Status</option>
+                                        <option value="completed">Selesai</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="cancelled">Dibatalkan</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex justify-end pt-2 border-t border-gray-50">
+                                <button onClick={() => setShowFilters(false)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors shadow-md">Terapkan Filter</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -295,9 +365,14 @@ export default function HistoryPage() {
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                                 </button>
                                                 {item.status === 'draft' && (
-                                                    <button onClick={() => handleOpenConfirm(item, 'complete')} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200" title="Selesaikan">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                                                    </button>
+                                                    <>
+                                                        <button onClick={() => handleOpenConfirm(item, 'complete')} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200" title="Selesaikan">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                                        </button>
+                                                        <button onClick={() => handleOpenConfirm(item, 'delete')} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200" title="Hapus Draft">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                                                        </button>
+                                                    </>
                                                 )}
                                                 {item.status === 'completed' && (
                                                     <button onClick={() => handleOpenConfirm(item, 'reject')} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200" title="Tolak">
@@ -514,20 +589,24 @@ export default function HistoryPage() {
             {isConfirmOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in duration-200 scale-95">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmAction === 'complete' ? 'bg-emerald-100 text-emerald-500' : 'bg-red-100 text-red-500'}`}>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmAction === 'complete' ? 'bg-emerald-100 text-emerald-500' : confirmAction === 'reject' ? 'bg-red-100 text-red-500' : 'bg-red-100 text-red-600'}`}>
                             {confirmAction === 'complete' ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                            ) : (
+                            ) : confirmAction === 'reject' ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                             )}
                         </div>
                         <h3 className="font-bold text-xl text-gray-800 mb-2">
-                            {confirmAction === 'complete' ? 'Selesaikan Tindakan?' : 'Tolak Tindakan?'}
+                            {confirmAction === 'complete' ? 'Selesaikan Tindakan?' : confirmAction === 'reject' ? 'Tolak Tindakan?' : 'Hapus Draft?'}
                         </h3>
                         <p className="text-gray-500 text-sm mb-6">
                             {confirmAction === 'complete' 
                                 ? `Ini akan memotong stok bahan yang digunakan secara permanen untuk pasien "${currentRecord?.patient_name}". Lanjutkan?` 
-                                : `Ini akan membatalkan seluruh penggunaan bahan dan record akan ditolak. Lanjutkan?`}
+                                : confirmAction === 'reject'
+                                ? `Ini akan membatalkan seluruh penggunaan bahan dan record akan ditolak. Lanjutkan?`
+                                : "Apakah Anda yakin ingin menghapus draft ini secara permanen? Aksi ini tidak dapat dibatalkan."}
                         </p>
                         <div className="flex justify-center gap-3">
                             <button type="button" onClick={() => setIsConfirmOpen(false)} disabled={isSubmitting} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors w-full">Batal</button>
@@ -538,10 +617,12 @@ export default function HistoryPage() {
                                 className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-colors w-full flex justify-center items-center gap-2 ${
                                     confirmAction === 'complete' 
                                         ? 'bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/30' 
-                                        : 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
+                                        : confirmAction === 'reject'
+                                        ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
+                                        : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30'
                                 }`}
                             >
-                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : (confirmAction === 'complete' ? "Ya, Selesaikan" : "Ya, Tolak")}
+                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : (confirmAction === 'complete' ? "Ya, Selesaikan" : confirmAction === 'reject' ? "Ya, Tolak" : "Ya, Hapus Draft")}
                             </button>
                         </div>
                     </div>

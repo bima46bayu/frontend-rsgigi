@@ -25,6 +25,10 @@ export const rejectRecord = async (id) => {
     return sendRequest(`/records/${id}/reject`, {})
 }
 
+export const deleteRecordDraft = async (id) => {
+    return api.delete(`/records/${id}`)
+}
+
 export const exportHistory = async (startDate = '', endDate = '') => {
     const response = await api.get("/export/history", {
         params: { start_date: startDate, end_date: endDate },

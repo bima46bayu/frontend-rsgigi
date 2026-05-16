@@ -126,10 +126,10 @@ const DateRangePicker = ({ value, onChange }) => {
   };
 
   return (
-    <div className="flex bg-white w-full">
+    <div className="flex flex-col sm:flex-row bg-white w-full">
       {/* Sidebar Presets */}
-      <div className="w-40 border-r border-slate-50 p-4 bg-slate-50/30 flex flex-col gap-1">
-        <label className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-3 px-2">Pilih Cepat</label>
+      <div className="w-full sm:w-40 border-b sm:border-b-0 sm:border-r border-slate-50 p-4 bg-slate-50/30 flex flex-row sm:flex-col gap-2 overflow-x-auto scrollbar-hide">
+        <label className="hidden sm:block text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-3 px-2">Pilih Cepat</label>
         {presets.map(p => {
           const isActive = startDate && endDate && isSameDay(startDate, p.getValue().start) && isSameDay(endDate, p.getValue().end);
           return (
@@ -140,7 +140,7 @@ const DateRangePicker = ({ value, onChange }) => {
                 const range = p.getValue();
                 onChange({ start_date: format(range.start, 'yyyy-MM-dd'), end_date: format(range.end, 'yyyy-MM-dd') });
               }}
-              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`whitespace-nowrap sm:w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                 isActive 
                   ? "bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]" 
                   : "text-slate-500 hover:bg-white hover:text-primary hover:shadow-sm"
@@ -153,14 +153,14 @@ const DateRangePicker = ({ value, onChange }) => {
         <button
           type="button"
           onClick={() => onChange({ start_date: null, end_date: null })}
-          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-50 transition-all mt-2"
+          className="whitespace-nowrap sm:w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-50 transition-all sm:mt-2"
         >
           Reset
         </button>
       </div>
 
       {/* Main Calendar Area */}
-      <div className="flex-1 p-6 flex flex-col">
+      <div className="flex-1 p-4 sm:p-6 flex flex-col overflow-hidden">
         {renderCalendar()}
         
         {/* Selection Info */}

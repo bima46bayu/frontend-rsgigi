@@ -14,6 +14,8 @@ import {
 import { getSuppliers } from "@/services/supplierService"
 import { getItems } from "@/services/inventoryService"
 import SearchableSelect from "@/components/SearchableSelect"
+import DateRangePicker from "@/components/DateRangePicker"
+
 export default function PurchasePage() {
     const router = useRouter()
     const [purchases, setPurchases] = useState([])
@@ -21,6 +23,15 @@ export default function PurchasePage() {
     const [allItems, setAllItems] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+
+    // Filter states
+    const [filterStatus, setFilterStatus] = useState("")
+    const [filterSupplier, setFilterSupplier] = useState("")
+    const [filterDateRange, setFilterDateRange] = useState({
+        start_date: "",
+        end_date: ""
+    })
+    const [showFilters, setShowFilters] = useState(false)
     
     // Modal states
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -194,6 +205,20 @@ export default function PurchasePage() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount)
     }
 
+    const filteredPurchases = purchases.filter(po => {
+        const matchesSearch = po.po_number.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = filterStatus ? po.status === filterStatus : true;
+        const matchesSupplier = filterSupplier ? String(po.supplier_id) === String(filterSupplier) : true;
+        
+        let matchesDate = true;
+        if (filterDateRange.start_date && filterDateRange.end_date) {
+            const poDate = new Date(po.created_at).toISOString().split('T')[0];
+            matchesDate = poDate >= filterDateRange.start_date && poDate <= filterDateRange.end_date;
+        }
+
+        return matchesSearch && matchesStatus && matchesSupplier && matchesDate;
+    })
+
     return (
         <div className="flex flex-col h-full">
             {/* Header / Actions bar */}
@@ -210,7 +235,14 @@ export default function PurchasePage() {
                         className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs"
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 relative">
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${showFilters ? 'bg-primary/10 border-primary/20 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                        Filter
+                    </button>
                     <button 
                         onClick={handleOpenAdd}
                         className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-1.5"
@@ -226,6 +258,51 @@ export default function PurchasePage() {
                     >
                         Penerimaan Barang (GR)
                     </button>
+
+                    {/* Filter Popover */}
+                    {showFilters && (
+                        <div className="absolute top-full right-0 mt-2 w-[90vw] max-w-[600px] sm:w-[600px] z-[60] bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50">
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                                    Filter Data
+                                </h4>
+                                <button onClick={() => { setFilterStatus(""); setFilterSupplier(""); setFilterDateRange({start_date: "", end_date: ""}); }} className="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded-md font-bold hover:bg-red-100 transition-colors">Reset Filter</button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Status PO</label>
+                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Status</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="partially_received">Sebagian Diterima</option>
+                                        <option value="received">Diterima</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Supplier</label>
+                                    <select value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all">
+                                        <option value="">Semua Supplier</option>
+                                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Rentang Tanggal</label>
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                        <DateRangePicker 
+                                            value={filterDateRange} 
+                                            onChange={(range) => setFilterDateRange(range)} 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex justify-end pt-2 border-t border-gray-50">
+                                <button onClick={() => setShowFilters(false)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors shadow-md">Terapkan Filter</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -254,12 +331,12 @@ export default function PurchasePage() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : purchases.length === 0 ? (
+                            ) : filteredPurchases.length === 0 ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center text-gray-400">Belum ada data Purchase Order.</td>
                                 </tr>
                             ) : (
-                                purchases.map((po, index) => (
+                                filteredPurchases.map((po, index) => (
                                     <tr key={po.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                         <td className="px-5 py-3 text-gray-500 text-center">{index + 1}</td>
                                         <td className="px-5 py-3 font-black text-gray-900 tracking-wider">

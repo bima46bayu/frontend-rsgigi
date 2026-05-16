@@ -4,13 +4,14 @@ import { useState, useEffect } from "react"
 import toast from "react-hot-toast"
 import { getTreatments } from "@/services/treatmentService"
 import { getItems } from "@/services/inventoryService"
-import { createRecordDraft, updateRecordItems, completeRecord } from "@/services/recordService"
+import { createRecordDraft, updateRecordItems, completeRecord, deleteRecordDraft } from "@/services/recordService"
 
 export default function RecordsPage() {
     const [treatments, setTreatments] = useState([])
     const [inventoryItems, setInventoryItems] = useState([])
     const [loading, setLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isNoTreatmentModalOpen, setIsNoTreatmentModalOpen] = useState(false)
 
     // POS State
     const [activeTab, setActiveTab] = useState('tindakan')
@@ -132,12 +133,12 @@ export default function RecordsPage() {
                     // Ambil data terbaru dari inventoryItems (untuk stok yang akurat)
                     const fullItem = inventoryItems.find(i => i.id === tItem.id) || tItem;
                     const existingIndex = newCart.findIndex(c => c.item.id === tItem.id)
-                    const addQty = tItem.pivot ? tItem.pivot.quantity : 1;
+                    const addQty = tItem.pivot ? Number(tItem.pivot.quantity) : 1;
                     
                     if (existingIndex >= 0) {
                         newCart[existingIndex] = {
                             ...newCart[existingIndex],
-                            quantity: newCart[existingIndex].quantity + addQty
+                            quantity: Number(newCart[existingIndex].quantity) + addQty
                         }
                     } else {
                         newCart.push({
@@ -170,10 +171,10 @@ export default function RecordsPage() {
                 treatment.items.forEach(tItem => {
                     const existingIndex = newCart.findIndex(c => c.item.id === tItem.id);
                     if (existingIndex >= 0) {
-                        const subQty = tItem.pivot ? tItem.pivot.quantity : 1;
+                        const subQty = tItem.pivot ? Number(tItem.pivot.quantity) : 1;
                         newCart[existingIndex] = {
                             ...newCart[existingIndex],
-                            quantity: newCart[existingIndex].quantity - subQty
+                            quantity: Number(newCart[existingIndex].quantity) - subQty
                         }
                     }
                 });
@@ -194,7 +195,7 @@ export default function RecordsPage() {
             const existingIndex = newCart.findIndex(c => c.item.id === item.id)
             
             if (existingIndex >= 0) {
-                newCart[existingIndex] = { ...newCart[existingIndex], quantity: newCart[existingIndex].quantity + 1 }
+                newCart[existingIndex] = { ...newCart[existingIndex], quantity: Number(newCart[existingIndex].quantity) + 1 }
             } else {
                 newCart.push({ item: fullItem, quantity: 1 })
             }
@@ -208,7 +209,7 @@ export default function RecordsPage() {
         updateActiveSession(s => {
             const newCart = s.cart.map(c => {
                 if (c.item.id === itemId) {
-                    const newQty = c.quantity + delta
+                    const newQty = Number(c.quantity) + delta
                     return newQty > 0 ? { ...c, quantity: newQty } : null
                 }
                 return c
@@ -228,14 +229,24 @@ export default function RecordsPage() {
         toast.success("Keranjang draft dikosongkan")
     }
 
-    const handleCheckout = async () => {
+    const handleCheckout = () => {
         if (activeSession.selectedTreatments.length === 0 && activeSession.cart.length === 0) {
             return toast.error("Keranjang kosong. Pilih minimal 1 tindakan atau bahan.")
         }
-        
+
+        if (activeSession.selectedTreatments.length === 0 && activeSession.cart.length > 0) {
+            setIsNoTreatmentModalOpen(true)
+        } else {
+            processCheckout()
+        }
+    }
+
+    const processCheckout = async () => {
+        setIsNoTreatmentModalOpen(false)
         setIsSubmitting(true)
         const toastId = toast.loading(`Memproses ${activeSession.name}...`)
         
+        let recordId = null;
         try {
             // STEP 1: Buat Draft -> Kirim Treatment IDs & Patient Name
             const draftRes = await createRecordDraft({
@@ -243,6 +254,7 @@ export default function RecordsPage() {
                 treatments: activeSession.selectedTreatments
             })
             const record = draftRes.data.data !== undefined ? draftRes.data.data : draftRes.data
+            recordId = record.id;
 
             // STEP 2: Sinkronisasi Item di Keranjang (biar sesuai dengan kreasi User)
             if (activeSession.cart.length > 0) {
@@ -269,12 +281,34 @@ export default function RecordsPage() {
             
             // Handle validation error specifically for insufficient stock
             if (errorData?.errors?.stock) {
-                message = "Stok tidak mencukupi untuk beberapa barang!"
+                const stockErrors = errorData.errors.stock;
+                // Check if the backend returns array of strings or objects
+                if (Array.isArray(stockErrors) && stockErrors.length > 0) {
+                    if (typeof stockErrors[0] === 'string') {
+                        message = `Stok tidak mencukupi untuk:\n- ` + stockErrors.join('\n- ');
+                    } else if (stockErrors[0].item_name) {
+                        const itemNames = stockErrors.map(s => s.item_name).join(', ');
+                        message = `Stok tidak mencukupi untuk: ${itemNames}`;
+                    } else {
+                        message = "Stok tidak mencukupi untuk beberapa barang!";
+                    }
+                } else {
+                    message = "Stok tidak mencukupi untuk beberapa barang!";
+                }
             } else if (errorData?.message) {
                 message = errorData.message
             }
             
             toast.error(message, { id: toastId })
+            
+            // Rollback draft creation if it fails in steps 2 or 3
+            if (recordId) {
+                try {
+                    await deleteRecordDraft(recordId)
+                } catch (rollbackError) {
+                    console.error("Gagal melakukan rollback draft:", rollbackError)
+                }
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -519,7 +553,7 @@ export default function RecordsPage() {
                 <div className="p-5 border-t border-slate-100 bg-white">
                     <div className="flex justify-between items-center mb-4 text-sm font-bold text-slate-600">
                         <span>Total Rincian Item:</span>
-                        <span className="text-lg text-slate-900">{activeSession.cart.reduce((acc, curr) => acc + curr.quantity, 0)} item</span>
+                        <span className="text-lg text-slate-900">{activeSession.cart.reduce((acc, curr) => acc + Number(curr.quantity), 0)} item</span>
                     </div>
                     <div className="flex flex-col gap-2">
                         <button 
@@ -545,6 +579,41 @@ export default function RecordsPage() {
                 </div>
 
             </div>
+            {/* Modal Konfirmasi Tanpa Tindakan */}
+            {isNoTreatmentModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-[400px] max-w-[90vw] animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-amber-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-800 leading-tight">Tanpa Tindakan</h3>
+                                <p className="text-xs font-medium text-slate-500 mt-1">Hanya menggunakan alat/bahan</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                            Anda belum memilih satupun <strong>Tindakan Medis</strong>. Apakah Anda yakin ingin menyelesaikan rekam medis ini hanya dengan rincian alat/bahan saja?
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button 
+                                onClick={() => setIsNoTreatmentModalOpen(false)}
+                                className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
+                            >
+                                Batal, Pilih Tindakan
+                            </button>
+                            <button 
+                                onClick={processCheckout}
+                                className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30"
+                            >
+                                Ya, Lanjutkan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

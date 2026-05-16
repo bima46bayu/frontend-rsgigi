@@ -16,6 +16,14 @@ export const deleteItem = (id) => {
     return sendDeleteRequest(`/items/${id}`)
 }
 
+export const bulkDeleteItems = (ids) => {
+    return sendRequest("/items/bulk-delete", { ids })
+}
+
+export const bulkUpdateItems = (ids, data) => {
+    return sendRequest("/items/bulk-update", { ...data, ids })
+}
+
 export const getItemFlow = (id) => {
     return api.get(`/items/${id}/transactions`)
 }

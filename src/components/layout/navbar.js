@@ -284,7 +284,7 @@ export default function Navbar() {
             {/* MODAL DETAIL (Sinkron dengan page notifikasi) */}
             {isDetailOpen && selectedNotif && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -295,7 +295,7 @@ export default function Navbar() {
                             </button>
                         </div>
                         
-                        <div className="p-6">
+                        <div className="p-6 overflow-y-auto">
                             <div className="mb-6 pb-6 border-b border-gray-100">
                                 <h4 className="text-lg font-bold text-gray-900 mb-1">{getNotificationContent(selectedNotif).title}</h4>
                                 <p className="text-sm text-gray-600 leading-relaxed">{getNotificationContent(selectedNotif).message}</p>
@@ -345,7 +345,7 @@ export default function Navbar() {
                                         {selectedNotif.data?.items ? (
                                             <div className="bg-gray-50 p-3 rounded-xl">
                                                 <p className="text-[10px] uppercase font-bold text-gray-400 mb-2">Daftar Item Kritis</p>
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
                                                     {selectedNotif.data.items.map((item, idx) => (
                                                         <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100 shadow-sm">
                                                             <div className="flex flex-col">
@@ -356,7 +356,7 @@ export default function Navbar() {
                                                                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.status === 'critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600 uppercase'}`}>
                                                                     {item.stock} STOK
                                                                 </span>
-                                                                <span className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-tighter">{item.status}</span>
+                                                                <span className={`text-[9px] font-bold mt-0.5 uppercase tracking-tighter ${item.status === 'critical' ? 'text-red-500' : 'text-amber-500'}`}>{item.status}</span>
                                                             </div>
                                                         </div>
                                                     ))}

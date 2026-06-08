@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { getItemBatches, getItems, adjustStockIn, adjustStockOut } from "@/services/inventoryService"
+import { getItemBatches, getItems, adjustStockIn, adjustStockOut, disposeStock } from "@/services/inventoryService"
 import toast from "react-hot-toast"
 
 function BatchInfoContent() {
@@ -22,6 +22,10 @@ function BatchInfoContent() {
         quantity: "",
         expiry_date: ""
     })
+
+    const [isDisposeOpen, setIsDisposeOpen] = useState(false)
+    const [selectedBatchId, setSelectedBatchId] = useState(null)
+    const [disposeForm, setDisposeForm] = useState({ quantity: "", note: "" })
 
     const loadData = async () => {
         if (!id) return
@@ -84,6 +88,34 @@ function BatchInfoContent() {
             loadData() // refresh batches
         } catch (err) {
             toast.error(err.message || "Gagal melakukan penyesuaian stok")
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleOpenDispose = (batch) => {
+        setSelectedBatchId(batch.id)
+        setDisposeForm({ quantity: batch.quantity.toString(), note: "" })
+        setIsDisposeOpen(true)
+    }
+
+    const handleDisposeSubmit = async (e) => {
+        e.preventDefault()
+        if (!disposeForm.quantity || disposeForm.quantity <= 0) {
+            return toast.error("Kuantitas harus lebih dari 0")
+        }
+        
+        setIsSubmitting(true)
+        try {
+            await disposeStock(selectedBatchId, {
+                quantity: parseInt(disposeForm.quantity),
+                note: disposeForm.note
+            })
+            toast.success("Berhasil membuang stok (Disposal)")
+            setIsDisposeOpen(false)
+            loadData() // refresh batches
+        } catch (err) {
+            toast.error(err.message || "Gagal membuang stok")
         } finally {
             setIsSubmitting(false)
         }
@@ -155,6 +187,14 @@ function BatchInfoContent() {
                                             ) : null}
                                         </div>
                                     </div>
+                                    <div className="mt-3 border-t border-gray-50 pt-3">
+                                        <button 
+                                            onClick={() => handleOpenDispose(b)}
+                                            className="w-full text-[10px] font-bold py-1.5 rounded bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                        >
+                                            BUANG STOK (DISPOSE)
+                                        </button>
+                                    </div>
                                 </div>
                             )
                         })}
@@ -208,6 +248,39 @@ function BatchInfoContent() {
                                 <button type="submit" disabled={isSubmitting} className={`px-4 py-2 text-sm font-bold text-white rounded-xl shadow-lg flex items-center gap-2 transition-colors ${adjustType === "in" ? "bg-green-600 hover:bg-green-700 shadow-green-600/30" : "bg-red-600 hover:bg-red-700 shadow-red-600/30"}`}>
                                     {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
                                     Simpan Adjust
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* DISPOSE STOCK MODAL */}
+            {isDisposeOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-red-50/50">
+                            <h3 className="font-bold text-red-600">Buang Stok (Disposal)</h3>
+                            <button onClick={() => setIsDisposeOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleDisposeSubmit} className="p-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Kuantitas yang Dibuang <span className="text-red-500">*</span></label>
+                                    <input type="number" value={disposeForm.quantity} onChange={(e) => setDisposeForm({...disposeForm, quantity: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm" placeholder="Contoh: 10" required />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Catatan / Alasan</label>
+                                    <textarea value={disposeForm.note} onChange={(e) => setDisposeForm({...disposeForm, note: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm" placeholder="Contoh: Barang rusak / kadaluarsa" rows={3}></textarea>
+                                </div>
+                            </div>
+                            <div className="mt-8 flex justify-end gap-2">
+                                <button type="button" onClick={() => setIsDisposeOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl">Batal</button>
+                                <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg shadow-red-600/30 flex items-center gap-2 transition-colors">
+                                    {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                    Konfirmasi Buang
                                 </button>
                             </div>
                         </form>

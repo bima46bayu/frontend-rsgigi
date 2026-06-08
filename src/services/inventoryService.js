@@ -40,6 +40,10 @@ export const adjustStockOut = (id, data) => {
     return sendRequest(`/items/${id}/stock-out`, data)
 }
 
+export const disposeStock = (stockId, data) => {
+    return sendRequest(`/items/stocks/${stockId}/dispose`, data)
+}
+
 export const exportInventory = async () => {
     const response = await api.get("/export/inventory", {
         responseType: 'blob'
